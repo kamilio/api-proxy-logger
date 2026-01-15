@@ -1,12 +1,5 @@
-# Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[cod]
-*$py.class
-
-# Virtual environment
-venv/
-.venv/
-env/
+# Dependencies
+node_modules/
 
 # Environment variables
 .env
@@ -23,12 +16,12 @@ logs/
 *.swp
 *.swo
 
-# pytest
-.pytest_cache/
-.coverage
-htmlcov/
+# OS files
+.DS_Store
+Thumbs.db
 
-# Distribution
+# Debug
+npm-debug.log*
+
+# Build output
 dist/
-build/
-*.egg-info/

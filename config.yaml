@@ -1,0 +1,14 @@
+# LLM API Debugger Configuration
+
+# Routes to ignore (not proxied, not logged)
+# Supports glob patterns
+ignore_routes:
+  - /favicon.ico
+  - /.well-known/*
+  - /robots.txt
+
+# Routes to hide from viewer UI (still logged)
+# Supports glob patterns
+hide_from_viewer:
+  - /v1/models
+  - /cdn-cgi/**

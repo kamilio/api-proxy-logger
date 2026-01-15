@@ -5,9 +5,10 @@ It proxies all requests localhost/* GET POST etc
 It must work with streaming APIs like chat/completions
 
 It will dump/log every request and response into yaml file, exactly as is
+
 - obfuscate Authorization header
 
-## Verification 
+## Verification
 
 script verify_completions.py
 
@@ -30,6 +31,7 @@ chat = client.chat.completions.create(
 
 print(chat.choices[0].message.content)
 ```
+
 script verify_anthropic
 
 ```
@@ -59,8 +61,7 @@ Use something that will make this simple and easy to build
 GET viewer
 
 Simple HTML app that will read last 20 (configurable via URL param) yaml entries
-ability to copy raw, copy node fetch, copy curl, copy python 
-
+ability to copy raw, copy node fetch, copy curl, copy python
 
 ## Others
 
@@ -71,6 +72,5 @@ make start-dev (with watcher)
 make install (dependencies)
 make test  unit tests
 make verify  verify scripts from above
-
 
 output directory should be in gitignore, pick one

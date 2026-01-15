@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLM API Debugger - Viewer</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            padding: 20px;
+        }
+        h1 { margin-bottom: 20px; color: #00d4ff; }
+        .controls {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .controls input {
+            padding: 8px 12px;
+            border: 1px solid #444;
+            border-radius: 4px;
+            background: #16213e;
+            color: #eee;
+            width: 80px;
+        }
+        .controls button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            background: #00d4ff;
+            color: #000;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .controls button:hover { background: #00a8cc; }
+        .entry {
+            background: #16213e;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            overflow: hidden;
+        }
+        .entry-header {
+            padding: 12px 16px;
+            background: #0f3460;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+        }
+        .entry-header:hover { background: #1a4a7a; }
+        .method {
+            font-weight: bold;
+            padding: 2px 8px;
+            border-radius: 4px;
+            margin-right: 10px;
+        }
+        .method.GET { background: #28a745; }
+        .method.POST { background: #007bff; }
+        .method.PUT { background: #ffc107; color: #000; }
+        .method.DELETE { background: #dc3545; }
+        .method.PATCH { background: #17a2b8; }
+        .url { word-break: break-all; }
+        .status { margin-left: auto; }
+        .status.ok { color: #28a745; }
+        .status.error { color: #dc3545; }
+        .duration { color: #ffc107; font-size: 0.9em; }
+        .timestamp { color: #888; font-size: 0.9em; }
+        .entry-body {
+            display: none;
+            padding: 16px;
+        }
+        .entry.expanded .entry-body { display: block; }
+        .copy-buttons {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+        .copy-btn {
+            padding: 6px 12px;
+            border: 1px solid #444;
+            border-radius: 4px;
+            background: #0f3460;
+            color: #eee;
+            cursor: pointer;
+            font-size: 0.85em;
+        }
+        .copy-btn:hover { background: #1a4a7a; }
+        .copy-btn.copied { background: #28a745; }
+        .section { margin-bottom: 16px; }
+        .section-title {
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #00d4ff;
+        }
+        pre {
+            background: #0d1b2a;
+            padding: 12px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 0.85em;
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        pre code.hljs {
+            background: transparent;
+            padding: 0;
+        }
+        .streaming-badge {
+            background: #9b59b6;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            margin-left: 10px;
+        }
+        .app-name {
+            background: #e67e22;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            margin-left: 10px;
+            color: #fff;
+        }
+        .app-name.unknown {
+            background: #555;
+            color: #999;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #888;
+        }
+        .empty-state h2 { color: #00d4ff; margin-bottom: 10px; }
+        .hidden-entry {
+            padding: 6px 16px;
+            background: #0f0f1a;
+            color: #555;
+            font-size: 0.8em;
+            margin-bottom: 4px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>LLM API Debugger</h1>
+    <div class="controls">
+        <label>Entries: <input type="number" id="limit" value="<%= limit %>" min="1" max="100"></label>
+        <button onclick="refresh()">Refresh</button>
+    </div>
+    <div id="entries">
+        <% if (logs.length === 0) { %>
+            <div class="empty-state">
+                <h2>No requests logged yet</h2>
+                <p>Point your LLM client to this proxy to start capturing requests.</p>
+            </div>
+        <% } else { %>
+            <% logs.forEach(function(log) { %>
+                <% if (log._hidden) { %>
+                    <div class="hidden-entry"><%= log._path %> hidden</div>
+                <% } else { %>
+                    <div class="entry" data-log='<%- JSON.stringify(log).replace(/'/g, "&#39;") %>'>
+                        <div class="entry-header" onclick="toggleEntry(this)">
+                            <div>
+                                <span class="method <%= log.request.method %>"><%= log.request.method %></span>
+                                <span class="url"><%= log.request.url %></span>
+                                <% if (log.response.is_streaming) { %>
+                                    <span class="streaming-badge">STREAMING</span>
+                                <% } %>
+                                <% const appName = log.request.headers['x-title'] || log.request.headers['http-referer'] || log.request.headers['X-Title'] || log.request.headers['HTTP-Referer'] || log.request.headers['referer'] || log.request.headers['Referer']; %>
+                                <span class="app-name <%= appName ? '' : 'unknown' %>"><%= appName || 'unknown' %></span>
+                            </div>
+                            <span class="status <%= log.response.status < 400 ? 'ok' : 'error' %>">
+                                <%= log.response.status %>
+                            </span>
+                            <span class="duration"><%= log.duration_ms || 0 %>ms</span>
+                            <span class="timestamp"><%= log.timestamp %></span>
+                        </div>
+                        <div class="entry-body"></div>
+                    </div>
+                <% } %>
+            <% }); %>
+        <% } %>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/json.min.js"></script>
+    <script>
+        function toggleEntry(header) {
+            const entry = header.parentElement;
+            entry.classList.toggle('expanded');
+
+            // Render content on first expand
+            if (entry.classList.contains('expanded') && !entry.dataset.rendered) {
+                const log = JSON.parse(entry.dataset.log);
+                const body = entry.querySelector('.entry-body');
+
+                const formatJson = (data) => {
+                    if (typeof data === 'object' && data !== null) {
+                        return JSON.stringify(data, null, 2);
+                    }
+                    return data || '';
+                };
+
+                body.innerHTML = `
+                    <div class="copy-buttons">
+                        <button class="copy-btn" onclick="copyRaw(this)">Copy Raw</button>
+                        <button class="copy-btn" onclick="copyCurl(this)">Copy cURL</button>
+                        <button class="copy-btn" onclick="copyFetch(this)">Copy Fetch</button>
+                        <button class="copy-btn" onclick="copyPython(this)">Copy Python</button>
+                    </div>
+                    <div class="section">
+                        <div class="section-title">Request Headers</div>
+                        <pre><code class="language-json">${hljs.highlight(formatJson(log.request.headers), {language: 'json'}).value}</code></pre>
+                    </div>
+                    <div class="section">
+                        <div class="section-title">Request Body</div>
+                        <pre><code class="language-json">${hljs.highlight(formatJson(log.request.body), {language: 'json'}).value}</code></pre>
+                    </div>
+                    <div class="section">
+                        <div class="section-title">Response Headers</div>
+                        <pre><code class="language-json">${hljs.highlight(formatJson(log.response.headers), {language: 'json'}).value}</code></pre>
+                    </div>
+                    <div class="section">
+                        <div class="section-title">Response Body</div>
+                        <pre><code class="language-json">${hljs.highlight(formatJson(log.response.body), {language: 'json'}).value}</code></pre>
+                    </div>
+                `;
+                entry.dataset.rendered = 'true';
+            }
+        }
+
+        function refresh() {
+            const limit = document.getElementById('limit').value;
+            window.location.href = '/viewer?limit=' + limit;
+        }
+
+        function getLogData(btn) {
+            const entry = btn.closest('.entry');
+            return JSON.parse(entry.dataset.log);
+        }
+
+        function copyToClipboard(text, btn) {
+            navigator.clipboard.writeText(text).then(() => {
+                btn.classList.add('copied');
+                const orig = btn.textContent;
+                btn.textContent = 'Copied!';
+                setTimeout(() => {
+                    btn.classList.remove('copied');
+                    btn.textContent = orig;
+                }, 1500);
+            });
+        }
+
+        function copyRaw(btn) {
+            const log = getLogData(btn);
+            copyToClipboard(JSON.stringify(log, null, 2), btn);
+        }
+
+        function copyCurl(btn) {
+            const log = getLogData(btn);
+            const headers = Object.entries(log.request.headers || {})
+                .map(([k, v]) => `-H '${k}: ${v}'`)
+                .join(' \\\n  ');
+            const body = log.request.body
+                ? `-d '${typeof log.request.body === 'object' ? JSON.stringify(log.request.body) : log.request.body}'`
+                : '';
+            const curl = `curl -X ${log.request.method} '${log.request.url}' \\\n  ${headers}${body ? ' \\\n  ' + body : ''}`;
+            copyToClipboard(curl, btn);
+        }
+
+        function copyFetch(btn) {
+            const log = getLogData(btn);
+            let code = `fetch('${log.request.url}', {\n`;
+            code += `  method: '${log.request.method}',\n`;
+            code += `  headers: ${JSON.stringify(log.request.headers || {}, null, 2).replace(/\n/g, '\n  ')},\n`;
+            if (log.request.body) {
+                code += `  body: JSON.stringify(${JSON.stringify(log.request.body, null, 2).replace(/\n/g, '\n  ')})\n`;
+            }
+            code += `});`;
+            copyToClipboard(code, btn);
+        }
+
+        function copyPython(btn) {
+            const log = getLogData(btn);
+            let code = `import requests\n\n`;
+            code += `response = requests.${log.request.method.toLowerCase()}(\n`;
+            code += `    '${log.request.url}',\n`;
+            code += `    headers=${JSON.stringify(log.request.headers || {}).replace(/"/g, "'")},\n`;
+            if (log.request.body) {
+                code += `    json=${JSON.stringify(log.request.body)}\n`;
+            }
+            code += `)\n`;
+            code += `print(response.json())`;
+            copyToClipboard(code, btn);
+        }
+    </script>
+</body>
+</html>

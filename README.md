@@ -1,2 +1,3 @@
-# api-proxy-logger
-Proxy and log any API calls
+# Logger
+
+Cline `http://localhost:8000/v1`
