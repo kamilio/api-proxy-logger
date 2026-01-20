@@ -382,6 +382,12 @@
                 <div class="panel">
                     <div class="panel-header">
                         <h3>Request headers</h3>
+                        <button class="icon-button" onclick="copyRequestHeaders(this)" aria-label="Copy request headers" title="Copy request headers">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="9" y="9" width="13" height="13" rx="2"></rect>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                            </svg>
+                        </button>
                     </div>
                     <pre class="code-block" aria-label="Request headers (click to expand)" title="Click to expand/collapse"><code id="request-headers" class="language-json"></code></pre>
                 </div>
@@ -400,6 +406,12 @@
                 <div class="panel">
                     <div class="panel-header">
                         <h3>Request body</h3>
+                        <button class="icon-button" onclick="copyRequestBody(this)" aria-label="Copy request body" title="Copy request body">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="9" y="9" width="13" height="13" rx="2"></rect>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                            </svg>
+                        </button>
                     </div>
                     <pre class="code-block" aria-label="Request body (click to expand)" title="Click to expand/collapse"><code id="request-body" class="language-json"></code></pre>
                 </div>
@@ -602,8 +614,18 @@
             copyToClipboard(formatJson(headers), btn);
         }
 
+        function copyRequestHeaders(btn) {
+            const headers = window.LOG_ENTRY?.request?.headers;
+            copyToClipboard(formatJson(headers), btn);
+        }
+
         function copyResponseBody(btn) {
             const body = window.LOG_ENTRY?.response?.body;
+            copyToClipboard(formatJson(body), btn);
+        }
+
+        function copyRequestBody(btn) {
+            const body = window.LOG_ENTRY?.request?.body;
             copyToClipboard(formatJson(body), btn);
         }
 
