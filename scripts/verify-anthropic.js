@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import 'dotenv/config';
+import { getLogsDir } from '../src/paths.js';
 
 /**
  * Verify the proxy works with Anthropic API
@@ -26,7 +27,7 @@ const proxyUrl = `http://${proxyHost}:${proxyPort}`;
 async function main() {
   console.log(`Testing proxy at ${proxyUrl}\n`);
 
-  const response = await fetch(`${proxyUrl}/v1/messages`, {
+  const response = await fetch(`${proxyUrl}/proxy/v1/messages`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -49,7 +50,34 @@ async function main() {
   console.log('Response:');
   console.log(data.content?.[0]?.text || JSON.stringify(data, null, 2));
 
-  console.log('\n\nVerification complete! Check ./logs for the captured request.');
+  console.log(`\n\nVerification complete! Check ${getLogsDir()} for the captured request.`);
+
+  await verifyEcho();
 }
 
 main();
+
+async function verifyEcho() {
+  console.log('\nTesting mock echo (Anthropic shape)...\n');
+
+  const response = await fetch(`${proxyUrl}/api/anthropic/v1/messages`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'echo-test',
+      max_tokens: 10,
+      messages: [{ role: 'user', content: 'echo' }],
+    }),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Echo HTTP ${response.status}: ${text}`);
+  }
+
+  const data = await response.json();
+  console.log('Echo response:');
+  console.log(JSON.stringify(data, null, 2));
+}

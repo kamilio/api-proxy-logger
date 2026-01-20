@@ -1,0 +1,41 @@
+# Git files
+.git
+.gitignore
+
+# Dependencies
+node_modules
+npm-debug.log
+
+# Development files
+*.md
+.env
+.env.local
+.env.*.local
+
+# Test files
+tests/
+test/
+*.test.js
+*.spec.js
+
+# Build artifacts
+dist/
+build/
+
+# Logs (these will be created in the container)
+logs/
+*.log
+
+# Editor directories
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Fly.io config (not needed in container)
+fly.toml
+
+# Local responses file (will be created in container)
+responses.yaml

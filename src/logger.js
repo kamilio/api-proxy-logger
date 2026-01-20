@@ -1,26 +1,7 @@
 import { mkdir, writeFile, readdir, readFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { join, relative } from 'node:path';
 import yaml from 'js-yaml';
-
-const OBFUSCATE_HEADERS = ['authorization', 'x-api-key', 'api-key'];
-
-function obfuscateValue(value) {
-  if (!value || typeof value !== 'string') return value;
-  if (value.length <= 10) return '***';
-  return `${value.slice(0, 6)}...${value.slice(-4)}`;
-}
-
-function obfuscateHeaders(headers) {
-  const result = {};
-  for (const [key, value] of Object.entries(headers)) {
-    if (OBFUSCATE_HEADERS.includes(key.toLowerCase())) {
-      result[key] = obfuscateValue(value);
-    } else {
-      result[key] = value;
-    }
-  }
-  return result;
-}
+import { sanitizeBody, sanitizeHeaders, sanitizeUrl } from './redact.js';
 
 function generateFilename() {
   const now = new Date();
@@ -40,28 +21,41 @@ function generateFilename() {
   ].join('');
 }
 
+function getProviderDir(outputDir, provider) {
+  if (!provider) return outputDir;
+  return join(outputDir, provider);
+}
+
 export async function logRequest(outputDir, data) {
-  await mkdir(outputDir, { recursive: true });
+  const providerDir = getProviderDir(outputDir, data.provider);
+  await mkdir(providerDir, { recursive: true });
+
+  const sanitizedRequestHeaders = sanitizeHeaders(data.requestHeaders || {});
+  const sanitizedResponseHeaders = sanitizeHeaders(data.responseHeaders || {});
+  const sanitizedRequestBody = sanitizeBody(data.requestBody);
+  const sanitizedResponseBody = sanitizeBody(data.responseBody);
+  const sanitizedUrl = sanitizeUrl(data.url);
 
   const logEntry = {
     timestamp: new Date().toISOString(),
+    provider: data.provider || null,
     duration_ms: data.duration,
     request: {
       method: data.method,
-      url: data.url,
-      headers: obfuscateHeaders(data.requestHeaders),
-      body: data.requestBody,
+      url: sanitizedUrl,
+      headers: sanitizedRequestHeaders,
+      body: sanitizedRequestBody,
     },
     response: {
       status: data.status,
-      headers: data.responseHeaders,
-      body: data.responseBody,
+      headers: sanitizedResponseHeaders,
+      body: sanitizedResponseBody,
       is_streaming: data.isStreaming,
     },
   };
 
   const filename = generateFilename();
-  const filepath = join(outputDir, filename);
+  const filepath = join(providerDir, filename);
   const content = yaml.dump(logEntry, {
     indent: 2,
     lineWidth: -1,
@@ -69,28 +63,71 @@ export async function logRequest(outputDir, data) {
   });
 
   await writeFile(filepath, content, 'utf-8');
-  console.log(`  Logged: ${data.method} ${data.url} -> ${data.status} (${data.duration}ms)`);
+  console.log(`  Logged: ${data.method} ${sanitizedUrl} -> ${data.status} (${data.duration}ms)`);
 
   return filepath;
 }
 
-export async function getRecentLogs(outputDir, limit = 20) {
+export async function getRecentLogs(outputDir, limit = 20, provider = null) {
   try {
-    const files = await readdir(outputDir);
-    const yamlFiles = files
-      .filter((f) => f.endsWith('.yaml'))
-      .sort()
-      .reverse()
-      .slice(0, limit);
+    const directories = [];
+    if (provider) {
+      if (provider === 'unknown') {
+        directories.push({ dir: outputDir, provider: null });
+      } else {
+        directories.push({ dir: join(outputDir, provider), provider });
+      }
+    } else {
+      const rootEntries = await readdir(outputDir, { withFileTypes: true });
+      directories.push({ dir: outputDir, provider: null });
+      for (const entry of rootEntries) {
+        if (entry.isDirectory()) {
+          directories.push({ dir: join(outputDir, entry.name), provider: entry.name });
+        }
+      }
+    }
+
+    const fileEntries = [];
+    for (const { dir, provider } of directories) {
+      try {
+        const files = await readdir(dir);
+        for (const filename of files) {
+          if (filename.endsWith('.yaml')) {
+            fileEntries.push({ path: join(dir, filename), provider });
+          }
+        }
+      } catch (error) {
+        if (error.code !== 'ENOENT') {
+          throw error;
+        }
+      }
+    }
 
     const logs = await Promise.all(
-      yamlFiles.map(async (filename) => {
-        const content = await readFile(join(outputDir, filename), 'utf-8');
-        return yaml.load(content);
+      fileEntries.map(async (entry) => {
+        const content = await readFile(entry.path, 'utf-8');
+        const log = yaml.load(content);
+        if (log && !log.provider && entry.provider) {
+          log.provider = entry.provider;
+        }
+        if (log && !log.provider) {
+          log.provider = 'unknown';
+        }
+        if (log) {
+          log._source_path = relative(process.cwd(), entry.path);
+        }
+        return log;
       })
     );
 
-    return logs;
+    return logs
+      .filter(Boolean)
+      .sort((a, b) => {
+        const aTime = Date.parse(a.timestamp || '') || 0;
+        const bTime = Date.parse(b.timestamp || '') || 0;
+        return bTime - aTime;
+      })
+      .slice(0, limit);
   } catch (error) {
     if (error.code === 'ENOENT') {
       return [];

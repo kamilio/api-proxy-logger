@@ -1,20 +1,29 @@
 import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import yaml from 'js-yaml';
+import { getConfigPath } from './paths.js';
 
-const CONFIG_PATH = join(process.cwd(), 'config.yaml');
+// Support environment-based configuration paths
+let cachedPath = null;
+const DEFAULT_CONFIG = {
+  ignore_routes: [],
+  hide_from_viewer: [],
+};
 
 let configCache = null;
 
 export function loadConfig() {
-  if (configCache) return configCache;
+  const configPath = getConfigPath();
+  if (configCache && cachedPath === configPath) return configCache;
 
   try {
-    const content = readFileSync(CONFIG_PATH, 'utf-8');
-    configCache = yaml.load(content);
+    const content = readFileSync(configPath, 'utf-8');
+    const parsed = yaml.load(content) || {};
+    configCache = { ...DEFAULT_CONFIG, ...parsed };
+    cachedPath = configPath;
   } catch (error) {
     if (error.code === 'ENOENT') {
-      configCache = { ignore_routes: [], hide_from_viewer: [] };
+      configCache = { ...DEFAULT_CONFIG };
+      cachedPath = configPath;
     } else {
       throw error;
     }

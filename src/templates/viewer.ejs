@@ -1,236 +1,319 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="h-full">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LLM API Debugger - Viewer</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-            background: #1a1a2e;
-            color: #eee;
-            padding: 20px;
+    <title>LLM Debugger</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                        mono: ['Menlo', 'Monaco', 'Courier New', 'monospace']
+                    }
+                }
+            }
         }
-        h1 { margin-bottom: 20px; color: #00d4ff; }
-        .controls {
-            margin-bottom: 20px;
-            display: flex;
-            gap: 10px;
-            align-items: center;
+    </script>
+    <script>
+        // Auto dark mode
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.documentElement.classList.add('dark');
         }
-        .controls input {
-            padding: 8px 12px;
-            border: 1px solid #444;
-            border-radius: 4px;
-            background: #16213e;
-            color: #eee;
-            width: 80px;
-        }
-        .controls button {
-            padding: 8px 16px;
-            border: none;
-            border-radius: 4px;
-            background: #00d4ff;
-            color: #000;
-            cursor: pointer;
-            font-weight: bold;
-        }
-        .controls button:hover { background: #00a8cc; }
-        .entry {
-            background: #16213e;
-            border-radius: 8px;
-            margin-bottom: 16px;
-            overflow: hidden;
-        }
-        .entry-header {
-            padding: 12px 16px;
-            background: #0f3460;
-            cursor: pointer;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 12px;
-        }
-        .entry-header:hover { background: #1a4a7a; }
-        .method {
-            font-weight: bold;
-            padding: 2px 8px;
-            border-radius: 4px;
-            margin-right: 10px;
-        }
-        .method.GET { background: #28a745; }
-        .method.POST { background: #007bff; }
-        .method.PUT { background: #ffc107; color: #000; }
-        .method.DELETE { background: #dc3545; }
-        .method.PATCH { background: #17a2b8; }
-        .url { word-break: break-all; }
-        .status { margin-left: auto; }
-        .status.ok { color: #28a745; }
-        .status.error { color: #dc3545; }
-        .duration { color: #ffc107; font-size: 0.9em; }
-        .timestamp { color: #888; font-size: 0.9em; }
-        .entry-body {
-            display: none;
-            padding: 16px;
-        }
-        .entry.expanded .entry-body { display: block; }
-        .copy-buttons {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 16px;
-            flex-wrap: wrap;
-        }
-        .copy-btn {
-            padding: 6px 12px;
-            border: 1px solid #444;
-            border-radius: 4px;
-            background: #0f3460;
-            color: #eee;
-            cursor: pointer;
-            font-size: 0.85em;
-        }
-        .copy-btn:hover { background: #1a4a7a; }
-        .copy-btn.copied { background: #28a745; }
-        .section { margin-bottom: 16px; }
-        .section-title {
-            font-weight: bold;
-            margin-bottom: 8px;
-            color: #00d4ff;
-        }
-        pre {
-            background: #0d1b2a;
-            padding: 12px;
-            border-radius: 4px;
-            overflow-x: auto;
-            font-size: 0.85em;
-            white-space: pre-wrap;
-            word-break: break-all;
-            max-height: 400px;
-            overflow-y: auto;
-        }
-        pre code.hljs {
-            background: transparent;
-            padding: 0;
-        }
-        .streaming-badge {
-            background: #9b59b6;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 0.8em;
-            margin-left: 10px;
-        }
-        .app-name {
-            background: #e67e22;
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-size: 0.8em;
-            margin-left: 10px;
-            color: #fff;
-        }
-        .app-name.unknown {
-            background: #555;
-            color: #999;
-        }
-        .empty-state {
-            text-align: center;
-            padding: 60px 20px;
-            color: #888;
-        }
-        .empty-state h2 { color: #00d4ff; margin-bottom: 10px; }
-        .hidden-entry {
-            padding: 6px 16px;
-            background: #0f0f1a;
-            color: #555;
-            font-size: 0.8em;
-            margin-bottom: 4px;
-            border-radius: 4px;
-        }
-    </style>
+    </script>
 </head>
-<body>
-    <h1>LLM API Debugger</h1>
-    <div class="controls">
-        <label>Entries: <input type="number" id="limit" value="<%= limit %>" min="1" max="100"></label>
-        <button onclick="refresh()">Refresh</button>
-    </div>
-    <div id="entries">
-        <% if (logs.length === 0) { %>
-            <div class="empty-state">
-                <h2>No requests logged yet</h2>
-                <p>Point your LLM client to this proxy to start capturing requests.</p>
-            </div>
-        <% } else { %>
-            <% logs.forEach(function(log) { %>
-                <% if (log._hidden) { %>
-                    <div class="hidden-entry"><%= log._path %> hidden</div>
-                <% } else { %>
-                    <div class="entry" data-log='<%- JSON.stringify(log).replace(/'/g, "&#39;") %>'>
-                        <div class="entry-header" onclick="toggleEntry(this)">
-                            <div>
-                                <span class="method <%= log.request.method %>"><%= log.request.method %></span>
-                                <span class="url"><%= log.request.url %></span>
-                                <% if (log.response.is_streaming) { %>
-                                    <span class="streaming-badge">STREAMING</span>
-                                <% } %>
-                                <% const appName = log.request.headers['x-title'] || log.request.headers['http-referer'] || log.request.headers['X-Title'] || log.request.headers['HTTP-Referer'] || log.request.headers['referer'] || log.request.headers['Referer']; %>
-                                <span class="app-name <%= appName ? '' : 'unknown' %>"><%= appName || 'unknown' %></span>
-                            </div>
-                            <span class="status <%= log.response.status < 400 ? 'ok' : 'error' %>">
-                                <%= log.response.status %>
-                            </span>
-                            <span class="duration"><%= log.duration_ms || 0 %>ms</span>
-                            <span class="timestamp"><%= log.timestamp %></span>
-                        </div>
-                        <div class="entry-body"></div>
+<body class="h-full bg-white dark:bg-gray-900 font-sans">
+    <div class="min-h-full">
+        <!-- Header -->
+        <div class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h1 class="text-2xl font-semibold text-gray-900 dark:text-white">LLM Debugger</h1>
+                        <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Monitor and debug API requests in real-time</p>
                     </div>
+                    <div class="flex items-center space-x-4">
+                        <div class="flex items-center space-x-2">
+                            <label for="limit" class="text-sm font-medium text-gray-700 dark:text-gray-300">Show</label>
+                            <input type="number" id="limit" value="<%= limit %>" min="1" max="100"
+                                class="w-20 rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm">
+                            <span class="text-sm text-gray-600 dark:text-gray-400">entries</span>
+                        </div>
+
+                        <select id="provider"
+                            class="rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm">
+                            <option value="">All Providers</option>
+                            <% (providers || []).forEach(function(provider) { %>
+                                <option value="<%= provider %>" <%= providerFilter === provider ? 'selected' : '' %>><%= provider %></option>
+                            <% }); %>
+                        </select>
+
+                        <button onclick="refresh()"
+                            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                            </svg>
+                            Refresh
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main content -->
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <div class="space-y-3">
+                <% if (logs.length === 0) { %>
+                    <div class="text-center py-12">
+                        <svg class="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                        </svg>
+                        <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100">No requests yet</h3>
+                        <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">Start making requests to see them here.</p>
+                    </div>
+                <% } else { %>
+                    <% logs.forEach(function(log) { %>
+                        <% if (log._hidden) { %>
+                            <div class="text-xs text-gray-500 dark:text-gray-500 italic px-2">Hidden: <%= log._path %></div>
+                        <% } else { %>
+                            <div class="bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden request-entry hover:shadow-md transition-shadow" data-log='<%- JSON.stringify(log).replace(/'/g, "&#39;") %>'>
+                                <div class="px-4 py-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors" onclick="toggleEntry(this)">
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center space-x-3 flex-1 min-w-0">
+                                            <!-- Method -->
+                                            <span class="method-badge <%= log.request.method.toLowerCase() %>">
+                                                <%= log.request.method %>
+                                            </span>
+
+                                            <!-- URL -->
+                                            <span class="text-sm text-gray-800 dark:text-gray-200 font-mono truncate flex-1">
+                                                <%= log.request.url %>
+                                            </span>
+
+                                            <!-- Badges -->
+                                            <div class="flex items-center space-x-2">
+                                                <% if (log.response.is_streaming) { %>
+                                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200">
+                                                        Streaming
+                                                    </span>
+                                                <% } %>
+
+                                                <% const providerName = log.provider || 'unknown'; %>
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200">
+                                                    <%= providerName %>
+                                                </span>
+
+                                                <% const appName = log.request.headers['x-title'] || log.request.headers['http-referer'] || log.request.headers['X-Title'] || log.request.headers['HTTP-Referer'] || log.request.headers['referer'] || log.request.headers['Referer']; %>
+                                                <% if (appName) { %>
+                                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
+                                                        <%= appName %>
+                                                    </span>
+                                                <% } %>
+                                            </div>
+                                        </div>
+
+                                        <div class="flex items-center space-x-3 ml-4">
+                                            <!-- Status -->
+                                            <span class="<%= log.response.status < 400 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400' %> text-sm font-semibold">
+                                                <%= log.response.status %>
+                                            </span>
+
+                                            <!-- Duration -->
+                                            <span class="text-sm text-gray-600 dark:text-gray-400 font-medium">
+                                                <%= log.duration_ms || 0 %>ms
+                                            </span>
+
+                                            <!-- Timestamp -->
+                                            <span class="text-sm text-gray-500 dark:text-gray-500 font-mono">
+                                                <%= new Date(log.timestamp).toLocaleTimeString() %>
+                                            </span>
+
+                                            <!-- Expand icon -->
+                                            <svg class="w-5 h-5 text-gray-500 dark:text-gray-400 transform transition-transform expand-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                            </svg>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="entry-details hidden border-t border-gray-200 dark:border-gray-700">
+                                    <div class="px-4 py-4 bg-gray-50 dark:bg-gray-850">
+                                        <!-- Content will be loaded here -->
+                                    </div>
+                                </div>
+                            </div>
+                        <% } %>
+                    <% }); %>
                 <% } %>
-            <% }); %>
-        <% } %>
+            </div>
+        </div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/json.min.js"></script>
+
+    <style>
+        @layer utilities {
+            .dark\:bg-gray-750 {
+                background-color: rgb(42, 44, 52);
+            }
+            .dark\:bg-gray-850 {
+                background-color: rgb(26, 27, 30);
+            }
+        }
+
+        .method-badge {
+            @apply inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-bold uppercase tracking-wider;
+        }
+        .method-badge.get {
+            @apply bg-green-100 text-green-900 dark:bg-green-900 dark:text-green-100;
+        }
+        .method-badge.post {
+            @apply bg-blue-100 text-blue-900 dark:bg-blue-900 dark:text-blue-100;
+        }
+        .method-badge.put {
+            @apply bg-amber-100 text-amber-900 dark:bg-amber-900 dark:text-amber-100;
+        }
+        .method-badge.delete {
+            @apply bg-red-100 text-red-900 dark:bg-red-900 dark:text-red-100;
+        }
+        .method-badge.patch {
+            @apply bg-purple-100 text-purple-900 dark:bg-purple-900 dark:text-purple-100;
+        }
+
+        .request-entry.expanded .expand-icon {
+            transform: rotate(180deg);
+        }
+
+        pre {
+            @apply bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto text-sm;
+        }
+
+        pre code.hljs {
+            @apply bg-transparent p-0;
+        }
+
+        /* Better scrollbar for dark mode */
+        .dark ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        .dark ::-webkit-scrollbar-track {
+            @apply bg-gray-800;
+        }
+
+        .dark ::-webkit-scrollbar-thumb {
+            @apply bg-gray-600 rounded;
+        }
+
+        .dark ::-webkit-scrollbar-thumb:hover {
+            @apply bg-gray-500;
+        }
+    </style>
+
     <script>
+        window.API_SHAPES = <%- JSON.stringify(apiShapes || []) %>;
+        window.PROVIDER_SHAPES = <%- JSON.stringify(providerShapes || {}) %>;
+
+        function formatJson(data) {
+            if (typeof data === 'object' && data !== null) {
+                return JSON.stringify(data, null, 2);
+            }
+            return data || '';
+        }
+
         function toggleEntry(header) {
-            const entry = header.parentElement;
+            const entry = header.closest('.request-entry');
+            const details = entry.querySelector('.entry-details');
+            const detailsContent = details.querySelector('.bg-gray-50, .dark\\:bg-gray-850');
+
             entry.classList.toggle('expanded');
+            details.classList.toggle('hidden');
 
             // Render content on first expand
             if (entry.classList.contains('expanded') && !entry.dataset.rendered) {
                 const log = JSON.parse(entry.dataset.log);
-                const body = entry.querySelector('.entry-body');
+                const apiShapes = window.API_SHAPES || [];
+                const providerShapes = window.PROVIDER_SHAPES || {};
+                const defaultShape = providerShapes[log.provider] || apiShapes[0] || '';
+                const shapeOptions = apiShapes.map((shape) => {
+                    const selected = shape === defaultShape ? 'selected' : '';
+                    return `<option value="${shape}" ${selected}>${shape}</option>`;
+                }).join('');
 
-                const formatJson = (data) => {
-                    if (typeof data === 'object' && data !== null) {
-                        return JSON.stringify(data, null, 2);
-                    }
-                    return data || '';
-                };
+                detailsContent.innerHTML = `
+                    <div class="space-y-6">
+                        <!-- Action buttons -->
+                        <div class="flex flex-wrap gap-2">
+                            <button onclick="copyPython(this)" class="copy-btn inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 shadow-sm text-xs font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                                <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                                </svg>
+                                Copy Python
+                            </button>
+                        </div>
 
-                body.innerHTML = `
-                    <div class="copy-buttons">
-                        <button class="copy-btn" onclick="copyRaw(this)">Copy Raw</button>
-                        <button class="copy-btn" onclick="copyCurl(this)">Copy cURL</button>
-                        <button class="copy-btn" onclick="copyFetch(this)">Copy Fetch</button>
-                        <button class="copy-btn" onclick="copyPython(this)">Copy Python</button>
-                    </div>
-                    <div class="section">
-                        <div class="section-title">Request Headers</div>
-                        <pre><code class="language-json">${hljs.highlight(formatJson(log.request.headers), {language: 'json'}).value}</code></pre>
-                    </div>
-                    <div class="section">
-                        <div class="section-title">Request Body</div>
-                        <pre><code class="language-json">${hljs.highlight(formatJson(log.request.body), {language: 'json'}).value}</code></pre>
-                    </div>
-                    <div class="section">
-                        <div class="section-title">Response Headers</div>
-                        <pre><code class="language-json">${hljs.highlight(formatJson(log.response.headers), {language: 'json'}).value}</code></pre>
-                    </div>
-                    <div class="section">
-                        <div class="section-title">Response Body</div>
-                        <pre><code class="language-json">${hljs.highlight(formatJson(log.response.body), {language: 'json'}).value}</code></pre>
+                        <!-- Save response -->
+                        <div class="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                            <label class="text-sm font-medium text-gray-700 dark:text-gray-300">API Shape:</label>
+                            <select class="api-shape rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm">
+                                ${shapeOptions}
+                            </select>
+                            <button onclick="saveResponse(this)" class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                                Save Response
+                            </button>
+                        </div>
+
+                        <!-- Request/Response sections -->
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <div class="space-y-4">
+                                <div>
+                                    <h3 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">Request Headers</h3>
+                                    <pre class="max-h-64 overflow-auto"><code class="language-json">${hljs.highlight(formatJson(log.request.headers), {language: 'json'}).value}</code></pre>
+                                </div>
+
+                                <div>
+                                    <h3 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">Request Body</h3>
+                                    <pre class="max-h-96 overflow-auto"><code class="language-json">${hljs.highlight(formatJson(log.request.body), {language: 'json'}).value}</code></pre>
+                                </div>
+                            </div>
+
+                            <div class="space-y-4">
+                                <div>
+                                    <div class="flex items-center justify-between mb-2">
+                                        <h3 class="text-sm font-medium text-gray-900 dark:text-gray-100">Response Headers</h3>
+                                        <button onclick="copyResponseHeaders(this)" class="copy-btn inline-flex items-center px-2 py-1 border border-gray-300 dark:border-gray-600 shadow-sm text-xs font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                                            <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16h8m-4-4h4m-8-4h8m2 2v8a2 2 0 01-2 2H8a2 2 0 01-2-2V8a2 2 0 012-2h8a2 2 0 012 2z"></path>
+                                            </svg>
+                                            Copy Headers
+                                        </button>
+                                    </div>
+                                    <pre class="max-h-64 overflow-auto"><code class="language-json">${hljs.highlight(formatJson(log.response.headers), {language: 'json'}).value}</code></pre>
+                                </div>
+
+                                <div>
+                                    <div class="flex items-center justify-between mb-2">
+                                        <h3 class="text-sm font-medium text-gray-900 dark:text-gray-100">Response Body</h3>
+                                        <button onclick="copyResponseBody(this)" class="copy-btn inline-flex items-center px-2 py-1 border border-gray-300 dark:border-gray-600 shadow-sm text-xs font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                                            <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16h8m-4-4h4m-8-4h8m2 2v8a2 2 0 01-2 2H8a2 2 0 01-2-2V8a2 2 0 012-2h8a2 2 0 012 2z"></path>
+                                            </svg>
+                                            Copy Body
+                                        </button>
+                                    </div>
+                                    <pre class="max-h-96 overflow-auto"><code class="language-json">${hljs.highlight(formatJson(log.response.body), {language: 'json'}).value}</code></pre>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 `;
                 entry.dataset.rendered = 'true';
@@ -239,68 +322,214 @@
 
         function refresh() {
             const limit = document.getElementById('limit').value;
-            window.location.href = '/viewer?limit=' + limit;
+            const provider = document.getElementById('provider').value;
+            const params = new URLSearchParams();
+            params.set('limit', limit);
+            if (provider) {
+                params.set('provider', provider);
+            }
+            window.location.href = '/viewer?' + params.toString();
         }
 
         function getLogData(btn) {
-            const entry = btn.closest('.entry');
+            const entry = btn.closest('.request-entry');
             return JSON.parse(entry.dataset.log);
+        }
+
+        function indentMultiline(text, spaces) {
+            const pad = ' '.repeat(spaces);
+            return text
+                .split('\n')
+                .map((line, index) => (index === 0 ? line : pad + line))
+                .join('\n');
+        }
+
+        function toPythonLiteral(value, depth = 0) {
+            const indentUnit = '    ';
+            const currentIndent = indentUnit.repeat(depth);
+            const nextIndent = indentUnit.repeat(depth + 1);
+
+            if (
+                value &&
+                typeof value === 'object' &&
+                !Array.isArray(value) &&
+                Object.prototype.hasOwnProperty.call(value, '__python_raw__')
+            ) {
+                return value.__python_raw__;
+            }
+            if (value === null || typeof value === 'undefined') {
+                return 'None';
+            }
+            if (typeof value === 'string') {
+                const escaped = value
+                    .replace(/\\/g, '\\\\')
+                    .replace(/'/g, "\\'")
+                    .replace(/\r/g, '\\r')
+                    .replace(/\n/g, '\\n')
+                    .replace(/\t/g, '\\t');
+                return `'${escaped}'`;
+            }
+            if (typeof value === 'number') {
+                return Number.isFinite(value) ? String(value) : 'None';
+            }
+            if (typeof value === 'boolean') {
+                return value ? 'True' : 'False';
+            }
+            if (Array.isArray(value)) {
+                if (value.length === 0) {
+                    return '[]';
+                }
+                const items = value
+                    .map((item) => `${nextIndent}${toPythonLiteral(item, depth + 1)}`)
+                    .join(',\n');
+                return `[\n${items}\n${currentIndent}]`;
+            }
+            if (typeof value === 'object') {
+                const entries = Object.entries(value);
+                if (entries.length === 0) {
+                    return '{}';
+                }
+                const props = entries
+                    .map(([key, val]) => {
+                        const escapedKey = String(key)
+                            .replace(/\\/g, '\\\\')
+                            .replace(/'/g, "\\'");
+                        return `${nextIndent}'${escapedKey}': ${toPythonLiteral(val, depth + 1)}`;
+                    })
+                    .join(',\n');
+                return `{\n${props}\n${currentIndent}}`;
+            }
+            return 'None';
         }
 
         function copyToClipboard(text, btn) {
             navigator.clipboard.writeText(text).then(() => {
-                btn.classList.add('copied');
-                const orig = btn.textContent;
-                btn.textContent = 'Copied!';
+                const originalText = btn.innerHTML;
+                btn.innerHTML = btn.innerHTML.replace(/Copy \w+/, 'Copied!');
+                btn.classList.add('!bg-green-100', 'dark:!bg-green-900', '!text-green-700', 'dark:!text-green-200', '!border-green-300', 'dark:!border-green-700');
                 setTimeout(() => {
-                    btn.classList.remove('copied');
-                    btn.textContent = orig;
-                }, 1500);
+                    btn.innerHTML = originalText;
+                    btn.classList.remove('!bg-green-100', 'dark:!bg-green-900', '!text-green-700', 'dark:!text-green-200', '!border-green-300', 'dark:!border-green-700');
+                }, 2000);
             });
-        }
-
-        function copyRaw(btn) {
-            const log = getLogData(btn);
-            copyToClipboard(JSON.stringify(log, null, 2), btn);
-        }
-
-        function copyCurl(btn) {
-            const log = getLogData(btn);
-            const headers = Object.entries(log.request.headers || {})
-                .map(([k, v]) => `-H '${k}: ${v}'`)
-                .join(' \\\n  ');
-            const body = log.request.body
-                ? `-d '${typeof log.request.body === 'object' ? JSON.stringify(log.request.body) : log.request.body}'`
-                : '';
-            const curl = `curl -X ${log.request.method} '${log.request.url}' \\\n  ${headers}${body ? ' \\\n  ' + body : ''}`;
-            copyToClipboard(curl, btn);
-        }
-
-        function copyFetch(btn) {
-            const log = getLogData(btn);
-            let code = `fetch('${log.request.url}', {\n`;
-            code += `  method: '${log.request.method}',\n`;
-            code += `  headers: ${JSON.stringify(log.request.headers || {}, null, 2).replace(/\n/g, '\n  ')},\n`;
-            if (log.request.body) {
-                code += `  body: JSON.stringify(${JSON.stringify(log.request.body, null, 2).replace(/\n/g, '\n  ')})\n`;
-            }
-            code += `});`;
-            copyToClipboard(code, btn);
         }
 
         function copyPython(btn) {
             const log = getLogData(btn);
-            let code = `import requests\n\n`;
-            code += `response = requests.${log.request.method.toLowerCase()}(\n`;
-            code += `    '${log.request.url}',\n`;
-            code += `    headers=${JSON.stringify(log.request.headers || {}).replace(/"/g, "'")},\n`;
-            if (log.request.body) {
-                code += `    json=${JSON.stringify(log.request.body)}\n`;
+            const method = log.request.method.toLowerCase();
+            const url = log.request.url;
+            const headers = { ...(log.request.headers || {}) };
+            let needsEnv = false;
+            const authKey = Object.keys(headers).find((key) => key.toLowerCase() === 'authorization');
+            if (authKey && typeof headers[authKey] === 'string') {
+                const authValue = headers[authKey];
+                if (authValue === 'api_key_provided') {
+                    headers[authKey] = { __python_raw__: "f'Bearer {api_key}'" };
+                    needsEnv = true;
+                } else if (authValue.includes('api_key_provided') && authValue.startsWith('Bearer ')) {
+                    headers[authKey] = {
+                        __python_raw__: "f'Bearer {api_key}'"
+                    };
+                    needsEnv = true;
+                }
             }
-            code += `)\n`;
-            code += `print(response.json())`;
+            const headersLiteral = indentMultiline(toPythonLiteral(headers), 4);
+            const body = log.request.body;
+            const bodyLiteral = body !== undefined && body !== null
+                ? indentMultiline(toPythonLiteral(body), 4)
+                : null;
+
+            const lines = [
+                needsEnv ? 'import os' : null,
+                'import json',
+                'import requests',
+                '',
+                needsEnv ? 'api_key = os.environ.get(\'API_KEY\')' : null,
+                needsEnv ? 'if not api_key:' : null,
+                needsEnv ? '    raise SystemExit(\'Set API_KEY environment variable before running.\')' : null,
+                needsEnv ? '' : null,
+                `response = requests.${method}(`,
+                `    '${url}',`,
+                `    headers=${headersLiteral},`,
+                bodyLiteral ? `    json=${bodyLiteral},` : null,
+                ')',
+                '',
+                'print(f\'Status: {response.status_code} {response.reason}\')',
+                'print(\'Response headers:\')',
+                'for key, value in response.headers.items():',
+                '    print(f\'  {key}: {value}\')',
+                '',
+                'try:',
+                '    data = response.json()',
+                '    print(\'Response JSON:\')',
+                '    print(json.dumps(data, indent=2))',
+                'except ValueError:',
+                '    print(\'Response text:\')',
+                '    print(response.text)',
+            ].filter((line) => line !== null);
+
+            const code = lines.join('\n');
             copyToClipboard(code, btn);
         }
+
+        function copyResponseHeaders(btn) {
+            const log = getLogData(btn);
+            const headers = log?.response?.headers;
+            copyToClipboard(formatJson(headers), btn);
+        }
+
+        function copyResponseBody(btn) {
+            const log = getLogData(btn);
+            const body = log?.response?.body;
+            copyToClipboard(formatJson(body), btn);
+        }
+
+        async function saveResponse(btn) {
+            const entry = btn.closest('.request-entry');
+            const log = JSON.parse(entry.dataset.log);
+            const shapeSelect = entry.querySelector('.api-shape');
+            const apiShape = shapeSelect ? shapeSelect.value : '';
+
+            if (!log._source_path) {
+                alert('No source path found for this log.');
+                return;
+            }
+            if (!apiShape) {
+                alert('Select an API shape first.');
+                return;
+            }
+
+            const suggested = `${log.provider || 'response'}-${(log.timestamp || '').replace(/[:.]/g, '-')}`;
+            const name = window.prompt('Response file name:', suggested);
+            if (!name) return;
+
+            try {
+                const response = await fetch('/viewer/save-response', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        source_path: log._source_path,
+                        name,
+                        api_shape: apiShape
+                    })
+                });
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data?.message || data?.error || 'Save failed');
+                }
+                alert(`Saved response for "${data.message}" as ${data.response_path}`);
+            } catch (err) {
+                alert(`Save failed: ${err.message}`);
+            }
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'r' && (e.metaKey || e.ctrlKey)) {
+                e.preventDefault();
+                refresh();
+            }
+        });
     </script>
 </body>
 </html>

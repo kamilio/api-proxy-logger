@@ -33,7 +33,7 @@ function parseBody(body) {
 }
 
 export async function createProxyHandler(req, res, config) {
-  const targetUrl = `${config.targetUrl}${req.url}`;
+  const targetUrl = config.targetUrl;
   const headers = filterHeaders(req.headers, EXCLUDED_REQUEST_HEADERS);
   const method = req.method;
   const body = req.body && req.body.length > 0 ? req.body : undefined;
@@ -58,6 +58,7 @@ export async function createProxyHandler(req, res, config) {
 
   // Log the request/response
   await logRequest(config.outputDir, {
+    provider: config.provider,
     method,
     url: targetUrl,
     requestHeaders: req.headers,
@@ -78,7 +79,7 @@ export async function createProxyHandler(req, res, config) {
 }
 
 export async function createStreamingProxyHandler(req, res, config) {
-  const targetUrl = `${config.targetUrl}${req.url}`;
+  const targetUrl = config.targetUrl;
   const headers = filterHeaders(req.headers, EXCLUDED_REQUEST_HEADERS);
   const method = req.method;
   const body = req.body && req.body.length > 0 ? req.body : undefined;
@@ -127,6 +128,7 @@ export async function createStreamingProxyHandler(req, res, config) {
       // Log after stream completes
       const fullResponse = Buffer.concat(chunks.map((c) => Buffer.from(c)));
       await logRequest(config.outputDir, {
+        provider: config.provider,
         method,
         url: targetUrl,
         requestHeaders: req.headers,

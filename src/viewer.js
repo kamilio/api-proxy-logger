@@ -15,7 +15,14 @@ async function getTemplate() {
   return templateCache;
 }
 
-export async function renderViewer(logs, limit) {
+export async function renderViewer(logs, limit, providerFilter, providers, providerShapes, apiShapes) {
   const template = await getTemplate();
-  return ejs.render(template, { logs, limit });
+  return ejs.render(template, {
+    logs,
+    limit,
+    providerFilter,
+    providers,
+    providerShapes,
+    apiShapes,
+  });
 }

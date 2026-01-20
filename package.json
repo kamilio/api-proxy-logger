@@ -1,13 +1,15 @@
 {
-  "name": "llm-api-debugger",
+  "name": "llm-debugger",
   "version": "1.0.0",
   "description": "Debug and log LLM API requests/responses with streaming support. Works with OpenAI, Anthropic, and compatible APIs.",
   "main": "src/index.js",
   "bin": {
-    "llm-api-debugger": "./src/cli.js"
+    "llm-debugger": "./src/cli.js",
+    "llm_debugger": "./src/cli.js"
   },
   "scripts": {
     "start": "node src/cli.js",
+    "stop": "pkill -f 'node.*cli.js' || pkill -f 'node.*server.js' || true",
     "start:dev": "node --watch src/cli.js",
     "test": "node --test tests/"
   },
@@ -27,6 +29,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@clack/prompts": "^0.11.0",
     "dotenv": "^16.6.1",
     "ejs": "^3.1.9",
     "express": "^4.18.2",
