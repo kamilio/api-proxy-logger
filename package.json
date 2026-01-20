@@ -30,15 +30,15 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/kjopek/llm-debugger.git"
+    "url": "git+https://github.com/kamilio/llm-debugger.git"
   },
   "bugs": {
-    "url": "https://github.com/kjopek/llm-debugger/issues"
+    "url": "https://github.com/kamilio/llm-debugger/issues"
   },
-  "homepage": "https://github.com/kjopek/llm-debugger#readme",
+  "homepage": "https://github.com/kamilio/llm-debugger#readme",
   "publishConfig": {
     "access": "public",
-    "provenance": true
+    "provenance": "true"
   },
   "files": [
     "src",
