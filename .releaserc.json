@@ -4,20 +4,23 @@
     [
       "@semantic-release/commit-analyzer",
       {
-        "preset": "angular",
         "releaseRules": [
+          { "breaking": true, "release": "major" },
           { "type": "feat", "release": "patch" },
           { "type": "fix", "release": "patch" },
           { "type": "perf", "release": "patch" },
           { "type": "refactor", "release": "patch" },
-          { "breaking": true, "release": "major" }
+          { "type": "chore", "release": false },
+          { "type": "docs", "release": false },
+          { "type": "test", "release": false }
         ]
       }
     ],
     "@semantic-release/release-notes-generator",
     [
-      "@continuous-auth/semantic-release-npm",
+      "@semantic-release/npm",
       {
+        "npmPublish": true,
         "provenance": true
       }
     ],
