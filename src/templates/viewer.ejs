@@ -1,325 +1,370 @@
 <!DOCTYPE html>
-<html lang="en" class="h-full">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LLM Debugger</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'system-ui', 'sans-serif'],
-                        mono: ['Menlo', 'Monaco', 'Courier New', 'monospace']
-                    }
-                }
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Source+Sans+3:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            color-scheme: light;
+            --bg: #f6f1ea;
+            --bg-strong: #efe5d9;
+            --panel: #ffffff;
+            --panel-alt: #fcf7f0;
+            --ink: #1e1b18;
+            --muted: #6f655b;
+            --accent: #c0583c;
+            --accent-strong: #9f4530;
+            --stroke: #e6d8c8;
+            --success: #2f8a4a;
+            --danger: #b23a3a;
+            --shadow: 0 18px 45px rgba(40, 30, 20, 0.12);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: "Source Sans 3", "Helvetica Neue", sans-serif;
+            background:
+                radial-gradient(1200px 500px at 6% -10%, rgba(255, 203, 144, 0.7), transparent 60%),
+                radial-gradient(900px 450px at 90% -20%, rgba(242, 152, 109, 0.5), transparent 60%),
+                linear-gradient(180deg, var(--bg) 0%, #fbf7f2 100%);
+            color: var(--ink);
+        }
+
+        .page {
+            min-height: 100vh;
+            padding: 32px 18px 64px;
+        }
+
+        .shell {
+            max-width: 1120px;
+            margin: 0 auto;
+        }
+
+        .hero {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 24px;
+            align-items: center;
+            justify-content: space-between;
+            padding: 28px;
+            background: var(--panel);
+            border-radius: 26px;
+            border: 1px solid var(--stroke);
+            box-shadow: var(--shadow);
+            position: relative;
+            overflow: hidden;
+            animation: rise 600ms ease-out;
+        }
+
+        .hero::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(120deg, rgba(193, 88, 60, 0.12), transparent 60%);
+            pointer-events: none;
+        }
+
+        .title-block {
+            max-width: 420px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .eyebrow {
+            text-transform: uppercase;
+            letter-spacing: 0.16em;
+            font-size: 0.72rem;
+            color: var(--accent-strong);
+            margin-bottom: 10px;
+        }
+
+        .title {
+            font-family: "Space Grotesk", "Arial Black", sans-serif;
+            font-size: clamp(1.8rem, 2vw + 1.4rem, 2.6rem);
+            margin: 0 0 8px;
+        }
+
+        .subtitle {
+            margin: 0;
+            color: var(--muted);
+            line-height: 1.4;
+        }
+
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+            position: relative;
+            z-index: 1;
+        }
+
+        .field {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            border-radius: 14px;
+            border: 1px solid var(--stroke);
+            background: var(--panel-alt);
+        }
+
+        label {
+            font-size: 0.85rem;
+            color: var(--muted);
+        }
+
+        input,
+        select {
+            border: none;
+            background: transparent;
+            font-size: 0.95rem;
+            font-family: "Source Sans 3", sans-serif;
+            color: var(--ink);
+            outline: none;
+        }
+
+        input[type="number"] {
+            width: 70px;
+        }
+
+        .btn {
+            border: none;
+            border-radius: 16px;
+            padding: 10px 16px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            background: var(--accent);
+            color: #fff;
+            cursor: pointer;
+            transition: transform 180ms ease, box-shadow 180ms ease;
+            box-shadow: 0 8px 18px rgba(193, 88, 60, 0.3);
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 14px 26px rgba(193, 88, 60, 0.35);
+        }
+
+        .logs {
+            margin-top: 28px;
+            display: grid;
+            gap: 16px;
+        }
+
+        .empty {
+            padding: 48px 24px;
+            background: var(--panel);
+            border-radius: 22px;
+            border: 1px dashed var(--stroke);
+            text-align: center;
+            color: var(--muted);
+        }
+
+        .log-card {
+            display: grid;
+            gap: 14px;
+            padding: 20px 22px;
+            border-radius: 20px;
+            border: 1px solid var(--stroke);
+            background: var(--panel);
+            text-decoration: none;
+            color: inherit;
+            position: relative;
+            overflow: hidden;
+            animation: rise 420ms ease both;
+        }
+
+        .log-card::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(120deg, rgba(193, 88, 60, 0.08), transparent 55%);
+            opacity: 0;
+            transition: opacity 200ms ease;
+        }
+
+        .log-card:hover::after {
+            opacity: 1;
+        }
+
+        .log-top,
+        .log-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px 14px;
+            align-items: center;
+            position: relative;
+            z-index: 1;
+        }
+
+        .method {
+            font-family: "Space Grotesk", sans-serif;
+            font-weight: 700;
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            padding: 6px 10px;
+            border-radius: 999px;
+            background: var(--bg-strong);
+        }
+
+        .method.get { background: rgba(47, 138, 74, 0.15); color: #1f6a36; }
+        .method.post { background: rgba(46, 111, 198, 0.15); color: #25518f; }
+        .method.put { background: rgba(212, 140, 34, 0.15); color: #8b5314; }
+        .method.delete { background: rgba(178, 58, 58, 0.15); color: #8f2c2c; }
+        .method.patch { background: rgba(138, 64, 162, 0.15); color: #6a2c7a; }
+
+        .url {
+            font-family: "JetBrains Mono", monospace;
+            font-size: 0.85rem;
+            color: var(--ink);
+            max-width: min(620px, 100%);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .pill {
+            padding: 5px 10px;
+            border-radius: 999px;
+            font-size: 0.78rem;
+            background: var(--panel-alt);
+            border: 1px solid var(--stroke);
+            color: var(--muted);
+        }
+
+        .pill.status.ok {
+            color: var(--success);
+            border-color: rgba(47, 138, 74, 0.3);
+            background: rgba(47, 138, 74, 0.08);
+        }
+
+        .pill.status.bad {
+            color: var(--danger);
+            border-color: rgba(178, 58, 58, 0.3);
+            background: rgba(178, 58, 58, 0.08);
+        }
+
+        .cta {
+            margin-left: auto;
+            font-size: 0.85rem;
+            color: var(--accent-strong);
+            font-weight: 600;
+        }
+
+        .muted {
+            color: var(--muted);
+        }
+
+        .hidden-note {
+            font-size: 0.78rem;
+            color: var(--muted);
+            font-style: italic;
+            padding: 6px 4px;
+        }
+
+        @keyframes rise {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @media (max-width: 720px) {
+            .hero {
+                padding: 20px;
+            }
+
+            .log-top {
+                align-items: flex-start;
+            }
+
+            .url {
+                max-width: 100%;
+            }
+
+            .cta {
+                margin-left: 0;
             }
         }
-    </script>
-    <script>
-        // Auto dark mode
-        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-            document.documentElement.classList.add('dark');
-        }
-    </script>
+    </style>
 </head>
-<body class="h-full bg-white dark:bg-gray-900 font-sans">
-    <div class="min-h-full">
-        <!-- Header -->
-        <div class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <h1 class="text-2xl font-semibold text-gray-900 dark:text-white">LLM Debugger</h1>
-                        <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Monitor and debug API requests in real-time</p>
+<body>
+    <div class="page">
+        <div class="shell">
+            <header class="hero">
+                <div class="title-block">
+                    <div class="eyebrow">LLM Debugger</div>
+                    <h1 class="title">Request Ledger</h1>
+                    <p class="subtitle">Scan recent proxy traffic and open a full request timeline.</p>
+                </div>
+                <div class="controls">
+                    <div class="field">
+                        <label for="limit">Show</label>
+                        <input type="number" id="limit" value="<%= limit %>" min="1" max="100">
+                        <span class="muted">entries</span>
                     </div>
-                    <div class="flex items-center space-x-4">
-                        <div class="flex items-center space-x-2">
-                            <label for="limit" class="text-sm font-medium text-gray-700 dark:text-gray-300">Show</label>
-                            <input type="number" id="limit" value="<%= limit %>" min="1" max="100"
-                                class="w-20 rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm">
-                            <span class="text-sm text-gray-600 dark:text-gray-400">entries</span>
-                        </div>
-
-                        <select id="provider"
-                            class="rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm">
-                            <option value="">All Providers</option>
+                    <div class="field">
+                        <label for="provider">Provider</label>
+                        <select id="provider">
+                            <option value="">All</option>
                             <% (providers || []).forEach(function(provider) { %>
                                 <option value="<%= provider %>" <%= providerFilter === provider ? 'selected' : '' %>><%= provider %></option>
                             <% }); %>
                         </select>
-
-                        <button onclick="refresh()"
-                            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">
-                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-                            </svg>
-                            Refresh
-                        </button>
                     </div>
+                    <button class="btn" onclick="refresh()">Refresh</button>
                 </div>
-            </div>
-        </div>
+            </header>
 
-        <!-- Main content -->
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-            <div class="space-y-3">
+            <section class="logs">
                 <% if (logs.length === 0) { %>
-                    <div class="text-center py-12">
-                        <svg class="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                        </svg>
-                        <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100">No requests yet</h3>
-                        <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">Start making requests to see them here.</p>
-                    </div>
+                    <div class="empty">No requests yet. Make a call through the proxy to populate the ledger.</div>
                 <% } else { %>
-                    <% logs.forEach(function(log) { %>
+                    <% const backParams = new URLSearchParams(); %>
+                    <% backParams.set('limit', limit); %>
+                    <% if (providerFilter) { backParams.set('provider', providerFilter); } %>
+                    <% const backQuery = backParams.toString() ? `?${backParams.toString()}` : ''; %>
+                    <% logs.forEach(function(log, index) { %>
                         <% if (log._hidden) { %>
-                            <div class="text-xs text-gray-500 dark:text-gray-500 italic px-2">Hidden: <%= log._path %></div>
+                            <div class="hidden-note">Hidden: <%= log._path %></div>
                         <% } else { %>
-                            <div class="bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden request-entry hover:shadow-md transition-shadow" data-log='<%- JSON.stringify(log).replace(/'/g, "&#39;") %>'>
-                                <div class="px-4 py-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors" onclick="toggleEntry(this)">
-                                    <div class="flex items-center justify-between">
-                                        <div class="flex items-center space-x-3 flex-1 min-w-0">
-                                            <!-- Method -->
-                                            <span class="method-badge <%= log.request.method.toLowerCase() %>">
-                                                <%= log.request.method %>
-                                            </span>
-
-                                            <!-- URL -->
-                                            <span class="text-sm text-gray-800 dark:text-gray-200 font-mono truncate flex-1">
-                                                <%= log.request.url %>
-                                            </span>
-
-                                            <!-- Badges -->
-                                            <div class="flex items-center space-x-2">
-                                                <% if (log.response.is_streaming) { %>
-                                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200">
-                                                        Streaming
-                                                    </span>
-                                                <% } %>
-
-                                                <% const providerName = log.provider || 'unknown'; %>
-                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200">
-                                                    <%= providerName %>
-                                                </span>
-
-                                                <% const appName = log.request.headers['x-title'] || log.request.headers['http-referer'] || log.request.headers['X-Title'] || log.request.headers['HTTP-Referer'] || log.request.headers['referer'] || log.request.headers['Referer']; %>
-                                                <% if (appName) { %>
-                                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
-                                                        <%= appName %>
-                                                    </span>
-                                                <% } %>
-                                            </div>
-                                        </div>
-
-                                        <div class="flex items-center space-x-3 ml-4">
-                                            <!-- Status -->
-                                            <span class="<%= log.response.status < 400 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400' %> text-sm font-semibold">
-                                                <%= log.response.status %>
-                                            </span>
-
-                                            <!-- Duration -->
-                                            <span class="text-sm text-gray-600 dark:text-gray-400 font-medium">
-                                                <%= log.duration_ms || 0 %>ms
-                                            </span>
-
-                                            <!-- Timestamp -->
-                                            <span class="text-sm text-gray-500 dark:text-gray-500 font-mono">
-                                                <%= new Date(log.timestamp).toLocaleTimeString() %>
-                                            </span>
-
-                                            <!-- Expand icon -->
-                                            <svg class="w-5 h-5 text-gray-500 dark:text-gray-400 transform transition-transform expand-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                                            </svg>
-                                        </div>
-                                    </div>
+                            <% const providerName = log.provider || 'unknown'; %>
+                            <% const appName = log.request.headers['x-title'] || log.request.headers['http-referer'] || log.request.headers['X-Title'] || log.request.headers['HTTP-Referer'] || log.request.headers['referer'] || log.request.headers['Referer']; %>
+                            <a class="log-card" style="animation-delay: <%= index * 45 %>ms" href="/viewer/<%= encodeURIComponent(log._viewer_provider || providerName) %>/<%= encodeURIComponent(log._viewer_file || '') %><%= backQuery %>">
+                                <div class="log-top">
+                                    <span class="method <%= log.request.method.toLowerCase() %>"><%= log.request.method %></span>
+                                    <span class="url"><%= log.request.url %></span>
+                                    <% if (log.response.is_streaming) { %>
+                                        <span class="pill">Streaming</span>
+                                    <% } %>
                                 </div>
-
-                                <div class="entry-details hidden border-t border-gray-200 dark:border-gray-700">
-                                    <div class="px-4 py-4 bg-gray-50 dark:bg-gray-850">
-                                        <!-- Content will be loaded here -->
-                                    </div>
+                                <div class="log-meta">
+                                    <span class="pill status <%= log.response.status < 400 ? 'ok' : 'bad' %>"><%= log.response.status %></span>
+                                    <span class="pill"><%= log.duration_ms || 0 %>ms</span>
+                                    <span class="pill"><%= new Date(log.timestamp).toLocaleTimeString() %></span>
+                                    <span class="pill"><%= providerName %></span>
+                                    <% if (appName) { %>
+                                        <span class="pill"><%= appName %></span>
+                                    <% } %>
+                                    <span class="cta">Open</span>
                                 </div>
-                            </div>
+                            </a>
                         <% } %>
                     <% }); %>
                 <% } %>
-            </div>
+            </section>
         </div>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/json.min.js"></script>
-
-    <style>
-        @layer utilities {
-            .dark\:bg-gray-750 {
-                background-color: rgb(42, 44, 52);
-            }
-            .dark\:bg-gray-850 {
-                background-color: rgb(26, 27, 30);
-            }
-        }
-
-        .method-badge {
-            @apply inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-bold uppercase tracking-wider;
-        }
-        .method-badge.get {
-            @apply bg-green-100 text-green-900 dark:bg-green-900 dark:text-green-100;
-        }
-        .method-badge.post {
-            @apply bg-blue-100 text-blue-900 dark:bg-blue-900 dark:text-blue-100;
-        }
-        .method-badge.put {
-            @apply bg-amber-100 text-amber-900 dark:bg-amber-900 dark:text-amber-100;
-        }
-        .method-badge.delete {
-            @apply bg-red-100 text-red-900 dark:bg-red-900 dark:text-red-100;
-        }
-        .method-badge.patch {
-            @apply bg-purple-100 text-purple-900 dark:bg-purple-900 dark:text-purple-100;
-        }
-
-        .request-entry.expanded .expand-icon {
-            transform: rotate(180deg);
-        }
-
-        pre {
-            @apply bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto text-sm;
-        }
-
-        pre code.hljs {
-            @apply bg-transparent p-0;
-        }
-
-        /* Better scrollbar for dark mode */
-        .dark ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-        }
-
-        .dark ::-webkit-scrollbar-track {
-            @apply bg-gray-800;
-        }
-
-        .dark ::-webkit-scrollbar-thumb {
-            @apply bg-gray-600 rounded;
-        }
-
-        .dark ::-webkit-scrollbar-thumb:hover {
-            @apply bg-gray-500;
-        }
-    </style>
-
     <script>
-        window.API_SHAPES = <%- JSON.stringify(apiShapes || []) %>;
-        window.PROVIDER_SHAPES = <%- JSON.stringify(providerShapes || {}) %>;
-
-        function formatJson(data) {
-            if (typeof data === 'object' && data !== null) {
-                return JSON.stringify(data, null, 2);
-            }
-            return data || '';
-        }
-
-        function toggleEntry(header) {
-            const entry = header.closest('.request-entry');
-            const details = entry.querySelector('.entry-details');
-            const detailsContent = details.querySelector('.bg-gray-50, .dark\\:bg-gray-850');
-
-            entry.classList.toggle('expanded');
-            details.classList.toggle('hidden');
-
-            // Render content on first expand
-            if (entry.classList.contains('expanded') && !entry.dataset.rendered) {
-                const log = JSON.parse(entry.dataset.log);
-                const apiShapes = window.API_SHAPES || [];
-                const providerShapes = window.PROVIDER_SHAPES || {};
-                const defaultShape = providerShapes[log.provider] || apiShapes[0] || '';
-                const shapeOptions = apiShapes.map((shape) => {
-                    const selected = shape === defaultShape ? 'selected' : '';
-                    return `<option value="${shape}" ${selected}>${shape}</option>`;
-                }).join('');
-
-                detailsContent.innerHTML = `
-                    <div class="space-y-6">
-                        <!-- Action buttons -->
-                        <div class="flex flex-wrap gap-2">
-                            <button onclick="copyPython(this)" class="copy-btn inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-600 shadow-sm text-xs font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                                <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
-                                </svg>
-                                Copy Python
-                            </button>
-                        </div>
-
-                        <!-- Save response -->
-                        <div class="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-                            <label class="text-sm font-medium text-gray-700 dark:text-gray-300">API Shape:</label>
-                            <select class="api-shape rounded-md border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm">
-                                ${shapeOptions}
-                            </select>
-                            <button onclick="saveResponse(this)" class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                                Save Response
-                            </button>
-                        </div>
-
-                        <!-- Request/Response sections -->
-                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                            <div class="space-y-4">
-                                <div>
-                                    <h3 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">Request Headers</h3>
-                                    <pre class="max-h-64 overflow-auto"><code class="language-json">${hljs.highlight(formatJson(log.request.headers), {language: 'json'}).value}</code></pre>
-                                </div>
-
-                                <div>
-                                    <h3 class="text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">Request Body</h3>
-                                    <pre class="max-h-96 overflow-auto"><code class="language-json">${hljs.highlight(formatJson(log.request.body), {language: 'json'}).value}</code></pre>
-                                </div>
-                            </div>
-
-                            <div class="space-y-4">
-                                <div>
-                                    <div class="flex items-center justify-between mb-2">
-                                        <h3 class="text-sm font-medium text-gray-900 dark:text-gray-100">Response Headers</h3>
-                                        <button onclick="copyResponseHeaders(this)" class="copy-btn inline-flex items-center px-2 py-1 border border-gray-300 dark:border-gray-600 shadow-sm text-xs font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                                            <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16h8m-4-4h4m-8-4h8m2 2v8a2 2 0 01-2 2H8a2 2 0 01-2-2V8a2 2 0 012-2h8a2 2 0 012 2z"></path>
-                                            </svg>
-                                            Copy Headers
-                                        </button>
-                                    </div>
-                                    <pre class="max-h-64 overflow-auto"><code class="language-json">${hljs.highlight(formatJson(log.response.headers), {language: 'json'}).value}</code></pre>
-                                </div>
-
-                                <div>
-                                    <div class="flex items-center justify-between mb-2">
-                                        <h3 class="text-sm font-medium text-gray-900 dark:text-gray-100">Response Body</h3>
-                                        <button onclick="copyResponseBody(this)" class="copy-btn inline-flex items-center px-2 py-1 border border-gray-300 dark:border-gray-600 shadow-sm text-xs font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                                            <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16h8m-4-4h4m-8-4h8m2 2v8a2 2 0 01-2 2H8a2 2 0 01-2-2V8a2 2 0 012-2h8a2 2 0 012 2z"></path>
-                                            </svg>
-                                            Copy Body
-                                        </button>
-                                    </div>
-                                    <pre class="max-h-96 overflow-auto"><code class="language-json">${hljs.highlight(formatJson(log.response.body), {language: 'json'}).value}</code></pre>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-                entry.dataset.rendered = 'true';
-            }
-        }
-
         function refresh() {
             const limit = document.getElementById('limit').value;
             const provider = document.getElementById('provider').value;
@@ -331,199 +376,6 @@
             window.location.href = '/viewer?' + params.toString();
         }
 
-        function getLogData(btn) {
-            const entry = btn.closest('.request-entry');
-            return JSON.parse(entry.dataset.log);
-        }
-
-        function indentMultiline(text, spaces) {
-            const pad = ' '.repeat(spaces);
-            return text
-                .split('\n')
-                .map((line, index) => (index === 0 ? line : pad + line))
-                .join('\n');
-        }
-
-        function toPythonLiteral(value, depth = 0) {
-            const indentUnit = '    ';
-            const currentIndent = indentUnit.repeat(depth);
-            const nextIndent = indentUnit.repeat(depth + 1);
-
-            if (
-                value &&
-                typeof value === 'object' &&
-                !Array.isArray(value) &&
-                Object.prototype.hasOwnProperty.call(value, '__python_raw__')
-            ) {
-                return value.__python_raw__;
-            }
-            if (value === null || typeof value === 'undefined') {
-                return 'None';
-            }
-            if (typeof value === 'string') {
-                const escaped = value
-                    .replace(/\\/g, '\\\\')
-                    .replace(/'/g, "\\'")
-                    .replace(/\r/g, '\\r')
-                    .replace(/\n/g, '\\n')
-                    .replace(/\t/g, '\\t');
-                return `'${escaped}'`;
-            }
-            if (typeof value === 'number') {
-                return Number.isFinite(value) ? String(value) : 'None';
-            }
-            if (typeof value === 'boolean') {
-                return value ? 'True' : 'False';
-            }
-            if (Array.isArray(value)) {
-                if (value.length === 0) {
-                    return '[]';
-                }
-                const items = value
-                    .map((item) => `${nextIndent}${toPythonLiteral(item, depth + 1)}`)
-                    .join(',\n');
-                return `[\n${items}\n${currentIndent}]`;
-            }
-            if (typeof value === 'object') {
-                const entries = Object.entries(value);
-                if (entries.length === 0) {
-                    return '{}';
-                }
-                const props = entries
-                    .map(([key, val]) => {
-                        const escapedKey = String(key)
-                            .replace(/\\/g, '\\\\')
-                            .replace(/'/g, "\\'");
-                        return `${nextIndent}'${escapedKey}': ${toPythonLiteral(val, depth + 1)}`;
-                    })
-                    .join(',\n');
-                return `{\n${props}\n${currentIndent}}`;
-            }
-            return 'None';
-        }
-
-        function copyToClipboard(text, btn) {
-            navigator.clipboard.writeText(text).then(() => {
-                const originalText = btn.innerHTML;
-                btn.innerHTML = btn.innerHTML.replace(/Copy \w+/, 'Copied!');
-                btn.classList.add('!bg-green-100', 'dark:!bg-green-900', '!text-green-700', 'dark:!text-green-200', '!border-green-300', 'dark:!border-green-700');
-                setTimeout(() => {
-                    btn.innerHTML = originalText;
-                    btn.classList.remove('!bg-green-100', 'dark:!bg-green-900', '!text-green-700', 'dark:!text-green-200', '!border-green-300', 'dark:!border-green-700');
-                }, 2000);
-            });
-        }
-
-        function copyPython(btn) {
-            const log = getLogData(btn);
-            const method = log.request.method.toLowerCase();
-            const url = log.request.url;
-            const headers = { ...(log.request.headers || {}) };
-            let needsEnv = false;
-            const authKey = Object.keys(headers).find((key) => key.toLowerCase() === 'authorization');
-            if (authKey && typeof headers[authKey] === 'string') {
-                const authValue = headers[authKey];
-                if (authValue === 'api_key_provided') {
-                    headers[authKey] = { __python_raw__: "f'Bearer {api_key}'" };
-                    needsEnv = true;
-                } else if (authValue.includes('api_key_provided') && authValue.startsWith('Bearer ')) {
-                    headers[authKey] = {
-                        __python_raw__: "f'Bearer {api_key}'"
-                    };
-                    needsEnv = true;
-                }
-            }
-            const headersLiteral = indentMultiline(toPythonLiteral(headers), 4);
-            const body = log.request.body;
-            const bodyLiteral = body !== undefined && body !== null
-                ? indentMultiline(toPythonLiteral(body), 4)
-                : null;
-
-            const lines = [
-                needsEnv ? 'import os' : null,
-                'import json',
-                'import requests',
-                '',
-                needsEnv ? 'api_key = os.environ.get(\'API_KEY\')' : null,
-                needsEnv ? 'if not api_key:' : null,
-                needsEnv ? '    raise SystemExit(\'Set API_KEY environment variable before running.\')' : null,
-                needsEnv ? '' : null,
-                `response = requests.${method}(`,
-                `    '${url}',`,
-                `    headers=${headersLiteral},`,
-                bodyLiteral ? `    json=${bodyLiteral},` : null,
-                ')',
-                '',
-                'print(f\'Status: {response.status_code} {response.reason}\')',
-                'print(\'Response headers:\')',
-                'for key, value in response.headers.items():',
-                '    print(f\'  {key}: {value}\')',
-                '',
-                'try:',
-                '    data = response.json()',
-                '    print(\'Response JSON:\')',
-                '    print(json.dumps(data, indent=2))',
-                'except ValueError:',
-                '    print(\'Response text:\')',
-                '    print(response.text)',
-            ].filter((line) => line !== null);
-
-            const code = lines.join('\n');
-            copyToClipboard(code, btn);
-        }
-
-        function copyResponseHeaders(btn) {
-            const log = getLogData(btn);
-            const headers = log?.response?.headers;
-            copyToClipboard(formatJson(headers), btn);
-        }
-
-        function copyResponseBody(btn) {
-            const log = getLogData(btn);
-            const body = log?.response?.body;
-            copyToClipboard(formatJson(body), btn);
-        }
-
-        async function saveResponse(btn) {
-            const entry = btn.closest('.request-entry');
-            const log = JSON.parse(entry.dataset.log);
-            const shapeSelect = entry.querySelector('.api-shape');
-            const apiShape = shapeSelect ? shapeSelect.value : '';
-
-            if (!log._source_path) {
-                alert('No source path found for this log.');
-                return;
-            }
-            if (!apiShape) {
-                alert('Select an API shape first.');
-                return;
-            }
-
-            const suggested = `${log.provider || 'response'}-${(log.timestamp || '').replace(/[:.]/g, '-')}`;
-            const name = window.prompt('Response file name:', suggested);
-            if (!name) return;
-
-            try {
-                const response = await fetch('/viewer/save-response', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        source_path: log._source_path,
-                        name,
-                        api_shape: apiShape
-                    })
-                });
-                const data = await response.json();
-                if (!response.ok) {
-                    throw new Error(data?.message || data?.error || 'Save failed');
-                }
-                alert(`Saved response for "${data.message}" as ${data.response_path}`);
-            } catch (err) {
-                alert(`Save failed: ${err.message}`);
-            }
-        }
-
-        // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
             if (e.key === 'r' && (e.metaKey || e.ctrlKey)) {
                 e.preventDefault();

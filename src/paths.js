@@ -25,6 +25,11 @@ export function getConfigPath() {
   return resolvePath(process.env.CONFIG_PATH || join(baseDir, 'config.yaml'));
 }
 
+export function getHomeConfigPath() {
+  const baseDir = getBaseDir();
+  return resolvePath(join(baseDir, 'config.yaml'));
+}
+
 export function getResponsesPath() {
   const logsDir = getLogsDir();
   return resolvePath(process.env.RESPONSES_PATH || join(logsDir, 'responses.yaml'));

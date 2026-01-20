@@ -1,0 +1,31 @@
+# Development files
+tests/
+scripts/
+.github/
+.releaserc.json
+
+# Documentation
+PLAN.md
+ROADMAP.md
+FLY_DEPLOYMENT.md
+
+# Environment and logs
+.env
+.env.*
+logs/
+responses.yaml
+
+# Docker
+Dockerfile
+.dockerignore
+fly.toml
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,5 +1,5 @@
 import { mkdir, writeFile, readdir, readFile } from 'node:fs/promises';
-import { join, relative } from 'node:path';
+import { basename, join, relative } from 'node:path';
 import yaml from 'js-yaml';
 import { sanitizeBody, sanitizeHeaders, sanitizeUrl } from './redact.js';
 
@@ -115,6 +115,8 @@ export async function getRecentLogs(outputDir, limit = 20, provider = null) {
         }
         if (log) {
           log._source_path = relative(process.cwd(), entry.path);
+          log._viewer_provider = log.provider || 'unknown';
+          log._viewer_file = basename(entry.path);
         }
         return log;
       })

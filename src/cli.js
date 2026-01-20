@@ -2,11 +2,12 @@
 
 import 'dotenv/config';
 import { copyFileSync, existsSync, mkdirSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { intro, log, note, spinner, outro } from '@clack/prompts';
 import { createServer } from './server.js';
-import { getConfigPath, getLogsDir } from './paths.js';
+import { getConfigPath, getHomeConfigPath, getLogsDir } from './paths.js';
+import { loadConfig } from './config.js';
 
 async function main() {
   const { flags, positionals } = parseArgs(process.argv.slice(2));
@@ -15,12 +16,15 @@ async function main() {
     return;
   }
 
+  // Precedence: CLI flags > env vars > config file > defaults.
   applyCliEnv(flags);
 
   if (flags.init || positionals.includes('init')) {
     runInit(flags.force === true);
     return;
   }
+
+  loadConfig();
 
   const proxyHost = process.env.PROXY_HOST || 'localhost';
 
@@ -144,19 +148,33 @@ function runInit(force) {
   intro('llm-debugger init');
 
   const configPath = getConfigPath();
-  if (existsSync(configPath) && !force) {
-    log.warn(`Config already exists at ${configPath}`);
+  const homeConfigPath = getHomeConfigPath();
+
+  const cliDir = dirname(fileURLToPath(import.meta.url));
+  const templatePath = join(cliDir, '..', 'config.yaml');
+  const resolvedTemplate = resolve(templatePath);
+  const resolvedConfig = resolve(configPath);
+  const resolvedHome = resolve(homeConfigPath);
+
+  if (!existsSync(homeConfigPath)) {
+    mkdirSync(dirname(homeConfigPath), { recursive: true });
+    if (existsSync(resolvedTemplate)) {
+      copyFileSync(resolvedTemplate, homeConfigPath);
+    }
+  }
+
+  const targetPath = resolvedConfig === resolvedTemplate ? resolvedHome : resolvedConfig;
+  if (existsSync(targetPath) && !force) {
+    log.warn(`Config already exists at ${targetPath}`);
     log.info('Re-run with --force to overwrite.');
     outro('No changes made.');
     return;
   }
-
-  const cliDir = dirname(fileURLToPath(import.meta.url));
-  const templatePath = join(cliDir, '..', 'config.yaml');
-
-  mkdirSync(dirname(configPath), { recursive: true });
-  copyFileSync(templatePath, configPath);
-  log.success(`Copied config to ${configPath}`);
+  if (!existsSync(targetPath) || force) {
+    mkdirSync(dirname(targetPath), { recursive: true });
+    copyFileSync(templatePath, targetPath);
+  }
+  log.success(`Copied config to ${targetPath}`);
   outro('Init complete.');
 }
 

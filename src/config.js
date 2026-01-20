@@ -1,34 +1,53 @@
-import { readFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import yaml from 'js-yaml';
-import { getConfigPath } from './paths.js';
+import { getConfigPath, getHomeConfigPath } from './paths.js';
 
 // Support environment-based configuration paths
 let cachedPath = null;
 const DEFAULT_CONFIG = {
+  env: {},
   ignore_routes: [],
   hide_from_viewer: [],
 };
 
 let configCache = null;
+const TEMPLATE_CONFIG_PATH = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  '..',
+  'config.yaml'
+);
 
 export function loadConfig() {
-  const configPath = getConfigPath();
+  const homeConfigPath = getHomeConfigPath();
+  ensureHomeConfig(homeConfigPath);
+  let configPath = getConfigPath();
+  if (resolve(configPath) === TEMPLATE_CONFIG_PATH) {
+    configPath = homeConfigPath;
+  }
   if (configCache && cachedPath === configPath) return configCache;
 
   try {
     const content = readFileSync(configPath, 'utf-8');
     const parsed = yaml.load(content) || {};
-    configCache = { ...DEFAULT_CONFIG, ...parsed };
+    configCache = {
+      ...DEFAULT_CONFIG,
+      ...parsed,
+      env: { ...DEFAULT_CONFIG.env, ...(parsed.env || {}) },
+    };
     cachedPath = configPath;
   } catch (error) {
     if (error.code === 'ENOENT') {
       configCache = { ...DEFAULT_CONFIG };
       cachedPath = configPath;
+      writeDefaultConfig(configPath, configCache);
     } else {
       throw error;
     }
   }
 
+  applyEnv(configCache.env);
   return configCache;
 }
 
@@ -70,4 +89,35 @@ function matchPattern(pattern, path) {
 
   const regex = new RegExp(`^${regexPattern}$`);
   return regex.test(path);
+}
+
+function applyEnv(envConfig) {
+  if (!envConfig || typeof envConfig !== 'object') return;
+  for (const [key, value] of Object.entries(envConfig)) {
+    if (value === undefined || value === null) continue;
+    // Config env is lowest precedence; do not override existing env.
+    if (process.env[key] === undefined) {
+      process.env[key] = String(value);
+    }
+  }
+}
+
+function writeDefaultConfig(configPath, config) {
+  mkdirSync(dirname(configPath), { recursive: true });
+  const content = yaml.dump(config, {
+    indent: 2,
+    lineWidth: -1,
+    noRefs: true,
+  });
+  writeFileSync(configPath, content, 'utf-8');
+}
+
+function ensureHomeConfig(homeConfigPath) {
+  if (existsSync(homeConfigPath)) return;
+  mkdirSync(dirname(homeConfigPath), { recursive: true });
+  if (existsSync(TEMPLATE_CONFIG_PATH)) {
+    copyFileSync(TEMPLATE_CONFIG_PATH, homeConfigPath);
+    return;
+  }
+  writeDefaultConfig(homeConfigPath, DEFAULT_CONFIG);
 }

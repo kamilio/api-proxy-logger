@@ -1,5 +1,8 @@
 # LLM Debugger Configuration
 
+# Environment variables loaded into process.env
+env: {}
+
 # Routes to ignore (not proxied, not logged)
 # Supports glob patterns
 ignore_routes:

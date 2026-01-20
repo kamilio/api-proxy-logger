@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLM Debugger</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Source+Sans+3:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <style>
+        :root {
+            color-scheme: light;
+            --bg: #f6f1ea;
+            --bg-strong: #efe5d9;
+            --panel: #ffffff;
+            --panel-alt: #fcf7f0;
+            --ink: #1e1b18;
+            --muted: #6f655b;
+            --accent: #c0583c;
+            --accent-strong: #9f4530;
+            --stroke: #e6d8c8;
+            --success: #2f8a4a;
+            --danger: #b23a3a;
+            --code-bg: #1f1a16;
+            --code-ink: #f4eee7;
+            --shadow: 0 18px 45px rgba(40, 30, 20, 0.12);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: "Source Sans 3", "Helvetica Neue", sans-serif;
+            background:
+                radial-gradient(1200px 500px at 6% -10%, rgba(255, 203, 144, 0.7), transparent 60%),
+                radial-gradient(900px 450px at 90% -20%, rgba(242, 152, 109, 0.5), transparent 60%),
+                linear-gradient(180deg, var(--bg) 0%, #fbf7f2 100%);
+            color: var(--ink);
+        }
+
+        .page {
+            min-height: 100vh;
+            padding: 32px 18px 64px;
+        }
+
+        .shell {
+            max-width: 1120px;
+            margin: 0 auto;
+            display: grid;
+            gap: 24px;
+        }
+
+        .back {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--accent-strong);
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .back::before {
+            content: "\2190";
+        }
+
+        .header {
+            display: grid;
+            gap: 16px;
+            padding: 26px;
+            border-radius: 26px;
+            border: 1px solid var(--stroke);
+            background: var(--panel);
+            box-shadow: var(--shadow);
+            position: relative;
+            overflow: hidden;
+            animation: rise 600ms ease-out;
+        }
+
+        .header::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(120deg, rgba(193, 88, 60, 0.12), transparent 60%);
+            pointer-events: none;
+        }
+
+        .title {
+            font-family: "Space Grotesk", "Arial Black", sans-serif;
+            font-size: clamp(1.5rem, 2vw + 1rem, 2.2rem);
+            margin: 0 0 8px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .subtitle {
+            margin: 0;
+            color: var(--muted);
+            position: relative;
+            z-index: 1;
+        }
+
+        .summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 12px;
+            margin-top: 12px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .metric {
+            padding: 12px 14px;
+            border-radius: 16px;
+            border: 1px solid var(--stroke);
+            background: var(--panel-alt);
+        }
+
+        .metric span {
+            display: block;
+        }
+
+        .metric .label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--muted);
+            margin-bottom: 6px;
+        }
+
+        .metric .value {
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .value.ok { color: var(--success); }
+        .value.bad { color: var(--danger); }
+
+        .pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            font-weight: 700;
+            background: var(--bg-strong);
+        }
+
+        .pill.get { background: rgba(47, 138, 74, 0.15); color: #1f6a36; }
+        .pill.post { background: rgba(46, 111, 198, 0.15); color: #25518f; }
+        .pill.put { background: rgba(212, 140, 34, 0.15); color: #8b5314; }
+        .pill.delete { background: rgba(178, 58, 58, 0.15); color: #8f2c2c; }
+        .pill.patch { background: rgba(138, 64, 162, 0.15); color: #6a2c7a; }
+
+        .url {
+            font-family: "JetBrains Mono", monospace;
+            font-size: 0.9rem;
+            word-break: break-all;
+            margin-top: 6px;
+        }
+
+        .actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+            padding: 18px 22px;
+            border-radius: 20px;
+            border: 1px solid var(--stroke);
+            background: var(--panel);
+        }
+
+        .btn {
+            border: none;
+            border-radius: 14px;
+            padding: 10px 14px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            background: var(--accent);
+            color: #fff;
+            cursor: pointer;
+            transition: transform 180ms ease, box-shadow 180ms ease;
+            box-shadow: 0 8px 18px rgba(193, 88, 60, 0.3);
+        }
+
+        .btn.secondary {
+            background: var(--panel-alt);
+            color: var(--accent-strong);
+            border: 1px solid var(--stroke);
+            box-shadow: none;
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+        }
+
+        .field {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            border-radius: 14px;
+            border: 1px solid var(--stroke);
+            background: var(--panel-alt);
+        }
+
+        select {
+            border: none;
+            background: transparent;
+            font-size: 0.9rem;
+            font-family: "Source Sans 3", sans-serif;
+            color: var(--ink);
+            outline: none;
+        }
+
+        .grid {
+            display: grid;
+            gap: 20px;
+            grid-template-columns: 1fr;
+        }
+
+        .panel {
+            padding: 20px;
+            border-radius: 20px;
+            border: 1px solid var(--stroke);
+            background: var(--panel);
+            display: grid;
+            gap: 12px;
+        }
+
+        .panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .panel h3 {
+            margin: 0;
+            font-size: 0.95rem;
+        }
+
+        .icon-button {
+            border: 1px solid var(--stroke);
+            background: var(--panel-alt);
+            color: var(--accent-strong);
+            width: 34px;
+            height: 34px;
+            border-radius: 12px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: transform 180ms ease, box-shadow 180ms ease;
+        }
+
+        .icon-button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 18px rgba(193, 88, 60, 0.2);
+        }
+
+        .icon-button.is-copied {
+            background: rgba(47, 138, 74, 0.15);
+            color: #1f6a36;
+            border-color: rgba(47, 138, 74, 0.3);
+        }
+
+        .icon-button svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        pre {
+            margin: 0;
+            background: var(--code-bg);
+            color: var(--code-ink);
+            padding: 16px;
+            border-radius: 16px;
+            overflow-x: auto;
+            font-size: 0.82rem;
+            line-height: 1.5;
+        }
+
+        pre code.hljs {
+            background: transparent;
+        }
+
+        .code-block {
+            max-height: calc(50 * 1.5em);
+            overflow: hidden;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .code-block::before {
+            content: "Click to expand";
+            position: absolute;
+            right: 16px;
+            bottom: 12px;
+            font-size: 0.72rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: rgba(244, 238, 231, 0.7);
+            background: rgba(31, 26, 22, 0.7);
+            padding: 4px 8px;
+            border-radius: 999px;
+            z-index: 1;
+        }
+
+        .code-block::after {
+            content: "";
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            height: 48px;
+            background: linear-gradient(180deg, rgba(31, 26, 22, 0) 0%, rgba(31, 26, 22, 0.85) 100%);
+            pointer-events: none;
+        }
+
+        .code-block.expanded {
+            max-height: none;
+        }
+
+        .code-block.expanded::before {
+            display: none;
+        }
+
+        .code-block.expanded::after {
+            display: none;
+        }
+
+        .muted {
+            color: var(--muted);
+            font-size: 0.85rem;
+        }
+
+        @keyframes rise {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @media (max-width: 720px) {
+            .header {
+                padding: 20px;
+            }
+
+            .actions {
+                padding: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <% const providerName = log.provider || 'unknown'; %>
+    <% const appName = log.request.headers['x-title'] || log.request.headers['http-referer'] || log.request.headers['X-Title'] || log.request.headers['HTTP-Referer'] || log.request.headers['referer'] || log.request.headers['Referer']; %>
+    <% const detailAltText = `Request detail\\n${providerName}${appName ? ` - ${appName}` : ''}\\n\\n${log.request.url}`; %>
+    <div class="page">
+        <div class="shell">
+            <a class="back" href="<%= backLink %>">Back to viewer</a>
+
+            <section class="header" aria-label="<%= detailAltText %>" title="<%= detailAltText %>">
+                <div>
+                    <span class="pill <%= log.request.method.toLowerCase() %>"><%= log.request.method %></span>
+                    <h1 class="title">Request detail</h1>
+                    <p class="subtitle"><%= providerName %> <%= appName ? `- ${appName}` : '' %></p>
+                    <div class="url"><%= log.request.url %></div>
+                </div>
+                <div class="summary">
+                    <div class="metric">
+                        <span class="label">Status</span>
+                        <span class="value <%= log.response.status < 400 ? 'ok' : 'bad' %>"><%= log.response.status %></span>
+                    </div>
+                    <div class="metric">
+                        <span class="label">Duration</span>
+                        <span class="value"><%= log.duration_ms || 0 %>ms</span>
+                    </div>
+                    <div class="metric">
+                        <span class="label">Timestamp</span>
+                        <span class="value"><%= new Date(log.timestamp).toLocaleString() %></span>
+                    </div>
+                    <div class="metric">
+                        <span class="label">Streaming</span>
+                        <span class="value"><%= log.response.is_streaming ? 'Yes' : 'No' %></span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="actions">
+                <button class="btn secondary" onclick="copyPython(this)">Copy Python</button>
+                <div class="field">
+                    <span class="muted">API Shape</span>
+                    <select id="api-shape"></select>
+                </div>
+                <button class="btn" onclick="saveResponse(this)">Save Response</button>
+            </section>
+
+            <section class="grid">
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3>Request headers</h3>
+                    </div>
+                    <pre class="code-block" aria-label="Request headers (click to expand)" title="Click to expand/collapse"><code id="request-headers" class="language-json"></code></pre>
+                </div>
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3>Response headers</h3>
+                        <button class="icon-button" onclick="copyResponseHeaders(this)" aria-label="Copy response headers" title="Copy response headers">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="9" y="9" width="13" height="13" rx="2"></rect>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    <pre class="code-block" aria-label="Response headers (click to expand)" title="Click to expand/collapse"><code id="response-headers" class="language-json"></code></pre>
+                </div>
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3>Request body</h3>
+                    </div>
+                    <pre class="code-block" aria-label="Request body (click to expand)" title="Click to expand/collapse"><code id="request-body" class="language-json"></code></pre>
+                </div>
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3>Response body</h3>
+                        <button class="icon-button" onclick="copyResponseBody(this)" aria-label="Copy response body" title="Copy response body">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="9" y="9" width="13" height="13" rx="2"></rect>
+                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    <pre class="code-block" aria-label="Response body (click to expand)" title="Click to expand/collapse"><code id="response-body" class="language-json"></code></pre>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/json.min.js"></script>
+    <script>
+        window.LOG_ENTRY = <%- JSON.stringify(log).replace(/</g, '\\u003c') %>;
+        window.API_SHAPES = <%- JSON.stringify(apiShapes || []) %>;
+        window.PROVIDER_SHAPES = <%- JSON.stringify(providerShapes || {}) %>;
+
+        function formatJson(data) {
+            if (typeof data === 'object' && data !== null) {
+                return JSON.stringify(data, null, 2);
+            }
+            return data || '';
+        }
+
+        function setCode(id, value) {
+            const element = document.getElementById(id);
+            if (!element) return;
+            element.textContent = value;
+            hljs.highlightElement(element);
+        }
+
+        function renderLog() {
+            const log = window.LOG_ENTRY || {};
+            setCode('request-headers', formatJson(log?.request?.headers));
+            setCode('request-body', formatJson(log?.request?.body));
+            setCode('response-headers', formatJson(log?.response?.headers));
+            setCode('response-body', formatJson(log?.response?.body));
+
+            const apiShapes = window.API_SHAPES || [];
+            const providerShapes = window.PROVIDER_SHAPES || {};
+            const defaultShape = providerShapes[log.provider] || apiShapes[0] || '';
+            const shapeSelect = document.getElementById('api-shape');
+            if (shapeSelect) {
+                shapeSelect.innerHTML = apiShapes
+                    .map((shape) => {
+                        const selected = shape === defaultShape ? 'selected' : '';
+                        return `<option value="${shape}" ${selected}>${shape}</option>`;
+                    })
+                    .join('');
+            }
+        }
+
+        function indentMultiline(text, spaces) {
+            const pad = ' '.repeat(spaces);
+            return text
+                .split('\n')
+                .map((line, index) => (index === 0 ? line : pad + line))
+                .join('\n');
+        }
+
+        function toPythonLiteral(value, depth = 0) {
+            const indentUnit = '    ';
+            const currentIndent = indentUnit.repeat(depth);
+            const nextIndent = indentUnit.repeat(depth + 1);
+
+            if (
+                value &&
+                typeof value === 'object' &&
+                !Array.isArray(value) &&
+                Object.prototype.hasOwnProperty.call(value, '__python_raw__')
+            ) {
+                return value.__python_raw__;
+            }
+            if (value === null || typeof value === 'undefined') {
+                return 'None';
+            }
+            if (typeof value === 'string') {
+                const escaped = value
+                    .replace(/\\/g, '\\\\')
+                    .replace(/'/g, "\\'")
+                    .replace(/\r/g, '\\r')
+                    .replace(/\n/g, '\\n')
+                    .replace(/\t/g, '\\t');
+                return `'${escaped}'`;
+            }
+            if (typeof value === 'number') {
+                return Number.isFinite(value) ? String(value) : 'None';
+            }
+            if (typeof value === 'boolean') {
+                return value ? 'True' : 'False';
+            }
+            if (Array.isArray(value)) {
+                if (value.length === 0) {
+                    return '[]';
+                }
+                const items = value
+                    .map((item) => `${nextIndent}${toPythonLiteral(item, depth + 1)}`)
+                    .join(',\n');
+                return `[\n${items}\n${currentIndent}]`;
+            }
+            if (typeof value === 'object') {
+                const entries = Object.entries(value);
+                if (entries.length === 0) {
+                    return '{}';
+                }
+                const props = entries
+                    .map(([key, val]) => {
+                        const escapedKey = String(key)
+                            .replace(/\\/g, '\\\\')
+                            .replace(/'/g, "\\'");
+                        return `${nextIndent}'${escapedKey}': ${toPythonLiteral(val, depth + 1)}`;
+                    })
+                    .join(',\n');
+                return `{\n${props}\n${currentIndent}}`;
+            }
+            return 'None';
+        }
+
+        function copyToClipboard(text, btn) {
+            navigator.clipboard.writeText(text).then(() => {
+                if (btn.classList.contains('icon-button')) {
+                    const originalTitle = btn.getAttribute('title') || '';
+                    btn.dataset.originalTitle = originalTitle;
+                    btn.setAttribute('title', 'Copied!');
+                    btn.classList.add('is-copied');
+                    setTimeout(() => {
+                        btn.setAttribute('title', btn.dataset.originalTitle || '');
+                        btn.classList.remove('is-copied');
+                        delete btn.dataset.originalTitle;
+                    }, 2000);
+                } else {
+                    const originalText = btn.textContent;
+                    btn.textContent = 'Copied!';
+                    btn.style.background = 'rgba(47, 138, 74, 0.15)';
+                    btn.style.color = '#1f6a36';
+                    setTimeout(() => {
+                        btn.textContent = originalText;
+                        btn.style.background = '';
+                        btn.style.color = '';
+                    }, 2000);
+                }
+            });
+        }
+
+        function copyPython(btn) {
+            const log = window.LOG_ENTRY || {};
+            const method = (log?.request?.method || 'get').toLowerCase();
+            const url = log?.request?.url || '';
+            const headers = { ...(log?.request?.headers || {}) };
+            let needsEnv = false;
+            const authKey = Object.keys(headers).find((key) => key.toLowerCase() === 'authorization');
+            if (authKey && typeof headers[authKey] === 'string') {
+                const authValue = headers[authKey];
+                if (authValue === 'api_key_provided') {
+                    headers[authKey] = { __python_raw__: "f'Bearer {api_key}'" };
+                    needsEnv = true;
+                } else if (authValue.includes('api_key_provided') && authValue.startsWith('Bearer ')) {
+                    headers[authKey] = {
+                        __python_raw__: "f'Bearer {api_key}'"
+                    };
+                    needsEnv = true;
+                }
+            }
+            const headersLiteral = indentMultiline(toPythonLiteral(headers), 4);
+            const body = log?.request?.body;
+            const bodyLiteral = body !== undefined && body !== null
+                ? indentMultiline(toPythonLiteral(body), 4)
+                : null;
+
+            const lines = [
+                needsEnv ? 'import os' : null,
+                'import json',
+                'import requests',
+                '',
+                needsEnv ? 'api_key = os.environ.get(\'API_KEY\')' : null,
+                needsEnv ? 'if not api_key:' : null,
+                needsEnv ? '    raise SystemExit(\'Set API_KEY environment variable before running.\')' : null,
+                needsEnv ? '' : null,
+                `response = requests.${method}(`,
+                `    '${url}',`,
+                `    headers=${headersLiteral},`,
+                bodyLiteral ? `    json=${bodyLiteral},` : null,
+                ')',
+                '',
+                'print(f\'Status: {response.status_code} {response.reason}\')',
+                'print(\'Response headers:\')',
+                'for key, value in response.headers.items():',
+                '    print(f\'  {key}: {value}\')',
+                '',
+                'try:',
+                '    data = response.json()',
+                '    print(\'Response JSON:\')',
+                '    print(json.dumps(data, indent=2))',
+                'except ValueError:',
+                '    print(\'Response text:\')',
+                '    print(response.text)',
+            ].filter((line) => line !== null);
+
+            const code = lines.join('\n');
+            copyToClipboard(code, btn);
+        }
+
+        function copyResponseHeaders(btn) {
+            const headers = window.LOG_ENTRY?.response?.headers;
+            copyToClipboard(formatJson(headers), btn);
+        }
+
+        function copyResponseBody(btn) {
+            const body = window.LOG_ENTRY?.response?.body;
+            copyToClipboard(formatJson(body), btn);
+        }
+
+        async function saveResponse(btn) {
+            const log = window.LOG_ENTRY || {};
+            const shapeSelect = document.getElementById('api-shape');
+            const apiShape = shapeSelect ? shapeSelect.value : '';
+
+            if (!log._source_path) {
+                alert('No source path found for this log.');
+                return;
+            }
+            if (!apiShape) {
+                alert('Select an API shape first.');
+                return;
+            }
+
+            const suggested = `${log.provider || 'response'}-${(log.timestamp || '').replace(/[:.]/g, '-')}`;
+            const name = window.prompt('Response file name:', suggested);
+            if (!name) return;
+
+            try {
+                const response = await fetch('/viewer/save-response', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        source_path: log._source_path,
+                        name,
+                        api_shape: apiShape
+                    })
+                });
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data?.message || data?.error || 'Save failed');
+                }
+                alert(`Saved response for "${data.message}" as ${data.response_path}`);
+            } catch (err) {
+                alert(`Save failed: ${err.message}`);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', renderLog);
+        document.addEventListener('click', (event) => {
+            const block = event.target.closest('.code-block');
+            if (!block) return;
+            block.classList.toggle('expanded');
+        });
+    </script>
+</body>
+</html>
