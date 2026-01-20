@@ -151,6 +151,18 @@
             background: var(--bg-strong);
         }
 
+        .pill-group {
+            display: inline-flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .pill.shape {
+            background: rgba(193, 88, 60, 0.12);
+            color: var(--accent-strong);
+        }
+
         .pill.get { background: rgba(47, 138, 74, 0.15); color: #1f6a36; }
         .pill.post { background: rgba(46, 111, 198, 0.15); color: #25518f; }
         .pill.put { background: rgba(212, 140, 34, 0.15); color: #8b5314; }
@@ -207,6 +219,44 @@
             grid-template-columns: 1fr;
         }
 
+        .tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            padding: 10px;
+            border-radius: 18px;
+            border: 1px solid var(--stroke);
+            background: var(--panel);
+            box-shadow: var(--shadow);
+        }
+
+        .tab-button {
+            border: 1px solid transparent;
+            border-radius: 14px;
+            padding: 8px 14px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            background: var(--panel-alt);
+            color: var(--muted);
+            cursor: pointer;
+            transition: transform 160ms ease, box-shadow 160ms ease, color 160ms ease;
+        }
+
+        .tab-button.is-active {
+            background: var(--accent);
+            color: #fff;
+            box-shadow: 0 10px 24px rgba(193, 88, 60, 0.25);
+        }
+
+        .tab-panel {
+            display: none;
+            animation: rise 360ms ease-out;
+        }
+
+        .tab-panel.is-active {
+            display: block;
+        }
+
         .panel {
             padding: 20px;
             border-radius: 20px;
@@ -226,6 +276,230 @@
         .panel h3 {
             margin: 0;
             font-size: 0.95rem;
+        }
+
+        .preview-grid {
+            display: grid;
+            gap: 20px;
+            grid-template-columns: 1fr;
+        }
+
+        .message-list {
+            display: grid;
+            gap: 14px;
+        }
+
+        .message-card {
+            border-radius: 18px;
+            border: 1px solid var(--stroke);
+            background: var(--panel-alt);
+            padding: 14px 16px;
+            display: grid;
+            gap: 10px;
+        }
+
+        .message-card.role-system {
+            border-left: 4px solid rgba(178, 58, 58, 0.5);
+        }
+
+        .message-card.role-user {
+            border-left: 4px solid rgba(46, 111, 198, 0.5);
+        }
+
+        .message-card.role-assistant {
+            border-left: 4px solid rgba(47, 138, 74, 0.5);
+        }
+
+        .message-card.role-tool {
+            border-left: 4px solid rgba(138, 64, 162, 0.5);
+        }
+
+        .message-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--muted);
+        }
+
+        .message-role {
+            font-weight: 700;
+            color: var(--accent-strong);
+        }
+
+        .message-name {
+            font-weight: 600;
+        }
+
+        .message-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            font-size: 0.7rem;
+            color: var(--muted);
+        }
+
+        .message-tag {
+            padding: 4px 8px;
+            border-radius: 999px;
+            background: rgba(193, 88, 60, 0.12);
+            color: var(--accent-strong);
+            font-weight: 600;
+        }
+
+        .message-text {
+            margin: 0;
+            white-space: pre-wrap;
+            line-height: 1.55;
+        }
+
+        .message-image {
+            max-width: 100%;
+            border-radius: 12px;
+            border: 1px solid var(--stroke);
+            background: #fff;
+        }
+
+        .message-tool,
+        .message-json,
+        .message-reasoning,
+        .message-refusal {
+            background: rgba(31, 26, 22, 0.05);
+            border-radius: 12px;
+            padding: 10px 12px;
+        }
+
+        .message-tool pre,
+        .message-json pre,
+        .message-reasoning pre {
+            margin: 8px 0 0;
+            background: transparent;
+            color: var(--ink);
+            padding: 0;
+            font-size: 0.78rem;
+            line-height: 1.4;
+            white-space: pre-wrap;
+        }
+
+        .message-tool code,
+        .message-json code,
+        .message-reasoning code {
+            font-family: "JetBrains Mono", monospace;
+        }
+
+        .message-refusal {
+            color: var(--danger);
+            font-weight: 600;
+        }
+
+        .message-file {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--accent-strong);
+            font-weight: 600;
+            text-decoration: none;
+        }
+
+        .preview-block {
+            max-height: calc(12 * 1.55em);
+            overflow: hidden;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .preview-block::before {
+            content: "Click to expand";
+            position: absolute;
+            right: 12px;
+            bottom: 10px;
+            font-size: 0.72rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: rgba(31, 26, 22, 0.55);
+            background: rgba(255, 255, 255, 0.85);
+            padding: 4px 8px;
+            border-radius: 999px;
+            z-index: 1;
+        }
+
+        .preview-block::after {
+            content: "";
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            height: 40px;
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.95) 100%);
+            pointer-events: none;
+        }
+
+        .preview-block.expanded {
+            max-height: none;
+        }
+
+        .preview-block.expanded::before,
+        .preview-block.expanded::after {
+            display: none;
+        }
+
+        details.message-reasoning > summary {
+            cursor: pointer;
+            font-weight: 600;
+            color: var(--accent-strong);
+        }
+
+        .spec-grid {
+            display: grid;
+            gap: 16px;
+        }
+
+        .spec-title {
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--muted);
+            margin: 0 0 8px;
+        }
+
+        .spec-list {
+            margin: 0;
+            display: grid;
+            gap: 10px;
+        }
+
+        .spec-row {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            padding: 10px 12px;
+            border-radius: 12px;
+            border: 1px dashed var(--stroke);
+            background: #fff;
+        }
+
+        .spec-row dt {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: var(--muted);
+        }
+
+        .spec-row dd {
+            margin: 0;
+            font-weight: 600;
+            word-break: break-word;
+        }
+
+        .preview-errors {
+            margin-top: 12px;
+            display: grid;
+            gap: 6px;
+            color: var(--danger);
+            font-size: 0.85rem;
         }
 
         .icon-button {
@@ -343,13 +617,29 @@
     <% const providerName = log.provider || 'unknown'; %>
     <% const appName = log.request.headers['x-title'] || log.request.headers['http-referer'] || log.request.headers['X-Title'] || log.request.headers['HTTP-Referer'] || log.request.headers['referer'] || log.request.headers['Referer']; %>
     <% const detailAltText = `Request detail\\n${providerName}${appName ? ` - ${appName}` : ''}\\n\\n${log.request.url}`; %>
+    <% const previewData = preview || {}; %>
+    <% const previewRequest = previewData.request || { messages: [] }; %>
+    <% const previewResponse = previewData.response || { messages: [] }; %>
+    <% const previewSpec = previewData.spec || { request: [], response: [] }; %>
+    <% function formatPreviewValue(value) { %>
+        <% try { %>
+            <% if (typeof value === 'string') return value; %>
+            <% if (value === null || value === undefined) return ''; %>
+            <% return JSON.stringify(value, null, 2); %>
+        <% } catch (error) { %>
+            <% return String(value); %>
+        <% } %>
+    <% } %>
     <div class="page">
         <div class="shell">
             <a class="back" href="<%= backLink %>">Back to viewer</a>
 
             <section class="header" aria-label="<%= detailAltText %>" title="<%= detailAltText %>">
                 <div>
-                    <span class="pill <%= log.request.method.toLowerCase() %>"><%= log.request.method %></span>
+                    <div class="pill-group">
+                        <span class="pill <%= log.request.method.toLowerCase() %>"><%= log.request.method %></span>
+                        <span class="pill shape"><%= previewData.shapeLabel || 'Other' %></span>
+                    </div>
                     <h1 class="title">Request detail</h1>
                     <p class="subtitle"><%= providerName %> <%= appName ? `- ${appName}` : '' %></p>
                     <div class="url"><%= log.request.url %></div>
@@ -378,7 +668,202 @@
                 <button class="btn secondary" onclick="copyPython(this)">Copy Python</button>
             </section>
 
-            <section class="grid">
+            <section class="tabs" role="tablist">
+                <button class="tab-button is-active" type="button" data-tab="raw">Raw</button>
+                <button class="tab-button" type="button" data-tab="preview">Preview</button>
+            </section>
+
+            <section class="tab-panel" data-tab="preview">
+                <% if (previewData.errors && previewData.errors.length) { %>
+                    <div class="preview-errors">
+                        <% previewData.errors.forEach((error) => { %>
+                            <div><%= error %></div>
+                        <% }) %>
+                    </div>
+                <% } %>
+
+                <div class="preview-grid">
+                    <div class="panel">
+                        <div class="panel-header">
+                            <h3>Request messages</h3>
+                            <span class="muted"><%= previewRequest.messages.length %> item(s)</span>
+                        </div>
+                        <% if (!previewRequest.messages.length) { %>
+                            <p class="muted">No request messages detected for this API shape.</p>
+                        <% } else { %>
+                            <div class="message-list">
+                                <% previewRequest.messages.forEach((message) => { %>
+                                    <div class="message-card role-<%= message.role %>">
+                                        <div class="message-meta">
+                                            <span class="message-role"><%= message.role %></span>
+                                            <% if (message.name) { %>
+                                                <span class="message-name"><%= message.name %></span>
+                                            <% } %>
+                                        </div>
+                                        <% const requestMeta = message.metadata ? Object.entries(message.metadata) : []; %>
+                                        <% if (requestMeta.length) { %>
+                                            <div class="message-tags">
+                                                <% requestMeta.forEach(([key, value]) => { %>
+                                                    <span class="message-tag"><%= key %>: <%= value %></span>
+                                                <% }) %>
+                                            </div>
+                                        <% } %>
+                                        <div class="message-parts">
+                                            <% (message.parts || []).forEach((part) => { %>
+                                                <% const partType = part && part.type ? part.type : 'text'; %>
+                                                <% if (partType === 'text') { %>
+                                                    <div class="preview-block">
+                                                        <p class="message-text"><%= part.text %></p>
+                                                    </div>
+                                                <% } else if (partType === 'image') { %>
+                                                    <% if (part.url) { %>
+                                                        <img class="message-image" src="<%= part.url %>" alt="preview image" loading="lazy">
+                                                    <% } %>
+                                                <% } else if (partType === 'reasoning') { %>
+                                                    <details class="message-reasoning">
+                                                        <summary>Reasoning</summary>
+                                                        <div class="preview-block">
+                                                            <pre><code><%= part.text %></code></pre>
+                                                        </div>
+                                                    </details>
+                                                <% } else if (partType === 'tool_call') { %>
+                                                    <div class="message-tool preview-block">
+                                                        <div class="tool-label">Tool call: <%= part.name %></div>
+                                                        <% if (part.arguments) { %>
+                                                            <pre><code><%= formatPreviewValue(part.arguments) %></code></pre>
+                                                        <% } %>
+                                                    </div>
+                                                <% } else if (partType === 'refusal') { %>
+                                                    <div class="message-refusal"><%= part.text %></div>
+                                                <% } else if (partType === 'file') { %>
+                                                    <% if (part.url) { %>
+                                                        <a class="message-file" href="<%= part.url %>" target="_blank" rel="noreferrer">File attachment</a>
+                                                    <% } %>
+                                                <% } else if (partType === 'json') { %>
+                                                    <div class="message-json preview-block">
+                                                        <pre><code><%= formatPreviewValue(part.json) %></code></pre>
+                                                    </div>
+                                                <% } %>
+                                            <% }) %>
+                                        </div>
+                                    </div>
+                                <% }) %>
+                            </div>
+                        <% } %>
+                    </div>
+
+                    <div class="panel">
+                        <div class="panel-header">
+                            <h3>Response messages</h3>
+                            <span class="muted"><%= previewResponse.messages.length %> item(s)</span>
+                        </div>
+                        <% if (!previewResponse.messages.length) { %>
+                            <p class="muted">No response messages detected for this API shape.</p>
+                        <% } else { %>
+                            <div class="message-list">
+                                <% previewResponse.messages.forEach((message) => { %>
+                                    <div class="message-card role-<%= message.role %>">
+                                        <div class="message-meta">
+                                            <span class="message-role"><%= message.role %></span>
+                                            <% if (message.name) { %>
+                                                <span class="message-name"><%= message.name %></span>
+                                            <% } %>
+                                        </div>
+                                        <% const responseMeta = message.metadata ? Object.entries(message.metadata) : []; %>
+                                        <% if (responseMeta.length) { %>
+                                            <div class="message-tags">
+                                                <% responseMeta.forEach(([key, value]) => { %>
+                                                    <span class="message-tag"><%= key %>: <%= value %></span>
+                                                <% }) %>
+                                            </div>
+                                        <% } %>
+                                        <div class="message-parts">
+                                            <% (message.parts || []).forEach((part) => { %>
+                                                <% const partType = part && part.type ? part.type : 'text'; %>
+                                                <% if (partType === 'text') { %>
+                                                    <div class="preview-block">
+                                                        <p class="message-text"><%= part.text %></p>
+                                                    </div>
+                                                <% } else if (partType === 'image') { %>
+                                                    <% if (part.url) { %>
+                                                        <img class="message-image" src="<%= part.url %>" alt="preview image" loading="lazy">
+                                                    <% } %>
+                                                <% } else if (partType === 'reasoning') { %>
+                                                    <details class="message-reasoning">
+                                                        <summary>Reasoning</summary>
+                                                        <div class="preview-block">
+                                                            <pre><code><%= part.text %></code></pre>
+                                                        </div>
+                                                    </details>
+                                                <% } else if (partType === 'tool_call') { %>
+                                                    <div class="message-tool preview-block">
+                                                        <div class="tool-label">Tool call: <%= part.name %></div>
+                                                        <% if (part.arguments) { %>
+                                                            <pre><code><%= formatPreviewValue(part.arguments) %></code></pre>
+                                                        <% } %>
+                                                    </div>
+                                                <% } else if (partType === 'refusal') { %>
+                                                    <div class="message-refusal"><%= part.text %></div>
+                                                <% } else if (partType === 'file') { %>
+                                                    <% if (part.url) { %>
+                                                        <a class="message-file" href="<%= part.url %>" target="_blank" rel="noreferrer">File attachment</a>
+                                                    <% } %>
+                                                <% } else if (partType === 'json') { %>
+                                                    <div class="message-json preview-block">
+                                                        <pre><code><%= formatPreviewValue(part.json) %></code></pre>
+                                                    </div>
+                                                <% } %>
+                                            <% }) %>
+                                        </div>
+                                    </div>
+                                <% }) %>
+                            </div>
+                        <% } %>
+                    </div>
+
+                    <div class="panel">
+                        <div class="panel-header">
+                            <h3>Spec</h3>
+                            <span class="muted">Request + response</span>
+                        </div>
+                        <div class="spec-grid">
+                            <div>
+                                <p class="spec-title">Request</p>
+                                <% if (!previewSpec.request.length) { %>
+                                    <p class="muted">No spec fields detected.</p>
+                                <% } else { %>
+                                    <dl class="spec-list">
+                                        <% previewSpec.request.forEach((item) => { %>
+                                            <div class="spec-row">
+                                                <dt><%= item.label %></dt>
+                                                <dd><%= item.value %></dd>
+                                            </div>
+                                        <% }) %>
+                                    </dl>
+                                <% } %>
+                            </div>
+                            <div>
+                                <p class="spec-title">Response</p>
+                                <% if (!previewSpec.response.length) { %>
+                                    <p class="muted">No spec fields detected.</p>
+                                <% } else { %>
+                                    <dl class="spec-list">
+                                        <% previewSpec.response.forEach((item) => { %>
+                                            <div class="spec-row">
+                                                <dt><%= item.label %></dt>
+                                                <dd><%= item.value %></dd>
+                                            </div>
+                                        <% }) %>
+                                    </dl>
+                                <% } %>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="tab-panel is-active" data-tab="raw">
+                <section class="grid">
                 <div class="panel">
                     <div class="panel-header">
                         <h3>Request headers</h3>
@@ -427,6 +912,7 @@
                     </div>
                     <pre class="code-block" aria-label="Response body (click to expand)" title="Click to expand/collapse"><code id="response-body" class="language-json"></code></pre>
                 </div>
+                </section>
             </section>
         </div>
     </div>
@@ -457,6 +943,28 @@
             setCode('response-headers', formatJson(log?.response?.headers));
             setCode('response-body', formatJson(log?.response?.body));
 
+        }
+
+        function setupTabs() {
+            const buttons = Array.from(document.querySelectorAll('.tab-button'));
+            const panels = Array.from(document.querySelectorAll('.tab-panel'));
+            if (!buttons.length || !panels.length) return;
+
+            const activate = (tabName) => {
+                buttons.forEach((button) => {
+                    button.classList.toggle('is-active', button.dataset.tab === tabName);
+                });
+                panels.forEach((panel) => {
+                    panel.classList.toggle('is-active', panel.dataset.tab === tabName);
+                });
+            };
+
+            const initial = buttons.find((button) => button.classList.contains('is-active'));
+            activate(initial ? initial.dataset.tab : buttons[0].dataset.tab);
+
+            buttons.forEach((button) => {
+                button.addEventListener('click', () => activate(button.dataset.tab));
+            });
         }
 
         function indentMultiline(text, spaces) {
@@ -629,9 +1137,12 @@
             copyToClipboard(formatJson(body), btn);
         }
 
-        document.addEventListener('DOMContentLoaded', renderLog);
+        document.addEventListener('DOMContentLoaded', () => {
+            renderLog();
+            setupTabs();
+        });
         document.addEventListener('click', (event) => {
-            const block = event.target.closest('.code-block');
+            const block = event.target.closest('.code-block, .preview-block');
             if (!block) return;
             block.classList.toggle('expanded');
         });

@@ -41,10 +41,11 @@ export async function renderViewer(logs, limit, providerFilter, providers) {
   });
 }
 
-export async function renderViewerDetail(log, backLink) {
+export async function renderViewerDetail(log, backLink, preview) {
   const template = await getDetailTemplate();
   return ejs.render(template, {
     log,
     backLink,
+    preview,
   });
 }

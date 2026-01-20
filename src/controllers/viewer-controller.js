@@ -5,6 +5,7 @@ import {
   getViewerIndexData,
   loadViewerLog,
 } from '../services/viewer-service.js';
+import { buildPreviewModel } from '../services/viewer-preview.js';
 
 export function createViewerController(config) {
   return {
@@ -59,7 +60,8 @@ export function createViewerController(config) {
         }
 
         const backLink = buildBackLink(req.query);
-        const html = await renderViewerDetail(log, backLink);
+        const preview = buildPreviewModel(log);
+        const html = await renderViewerDetail(log, backLink, preview);
         res.type('html').send(html);
       } catch (error) {
         console.error('Viewer detail error:', error.message);
