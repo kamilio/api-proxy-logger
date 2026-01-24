@@ -372,7 +372,7 @@
                         <% } else { %>
                             <% const providerName = log.provider || 'unknown'; %>
                             <% const appName = log.request.headers['x-title'] || log.request.headers['http-referer'] || log.request.headers['X-Title'] || log.request.headers['HTTP-Referer'] || log.request.headers['referer'] || log.request.headers['Referer']; %>
-                            <a class="log-card" style="animation-delay: <%= index * 45 %>ms" href="/viewer/<%= encodeURIComponent(log._viewer_provider || providerName) %>/<%= encodeURIComponent(log._viewer_file || '') %><%= backQuery %>">
+                            <a class="log-card" style="animation-delay: <%= index * 45 %>ms" href="/__viewer__/<%= encodeURIComponent(log._viewer_provider || providerName) %>/<%= encodeURIComponent(log._viewer_file || '') %><%= backQuery %>">
                                 <div class="log-top">
                                     <span class="method <%= log.request.method.toLowerCase() %>"><%= log.request.method %></span>
                                     <span class="url"><%= log.request.url %></span>
@@ -418,7 +418,7 @@
             if (method) {
                 params.set('method', method);
             }
-            window.location.href = '/viewer?' + params.toString();
+            window.location.href = '/__viewer__?' + params.toString();
         }
 
         document.addEventListener('keydown', (e) => {

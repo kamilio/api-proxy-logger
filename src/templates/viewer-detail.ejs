@@ -1156,7 +1156,7 @@
 
             const provider = '<%= log._viewer_provider %>';
             const filename = '<%= log._viewer_file %>';
-            const deleteUrl = `/viewer/${encodeURIComponent(provider)}/${encodeURIComponent(filename)}`;
+            const deleteUrl = `/__viewer__/${encodeURIComponent(provider)}/${encodeURIComponent(filename)}`;
 
             btn.disabled = true;
             btn.textContent = 'Deleting...';

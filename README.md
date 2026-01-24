@@ -21,14 +21,14 @@ Point your LLM client to the proxy instead of the API directly:
 # Use:        http://localhost:8000/v1/chat/completions
 ```
 
-View logged requests at `http://localhost:8000/viewer`
+View logged requests at `http://localhost:8000/__viewer__`
 
 ## Routes
 
 | Route | Description |
 |-------|-------------|
 | `/*` | Forwards requests to target API |
-| `/viewer` | Web UI to inspect logged requests |
+| `/__viewer__` | Web UI to inspect logged requests |
 
 ## Configuration
 

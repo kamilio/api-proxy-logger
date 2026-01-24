@@ -65,7 +65,7 @@ export function buildBackLink(query) {
     params.set('method', String(query.method));
   }
   const search = params.toString();
-  return search ? `/viewer?${search}` : '/viewer';
+  return search ? `/__viewer__?${search}` : '/__viewer__';
 }
 
 function isSafeSegment(value) {

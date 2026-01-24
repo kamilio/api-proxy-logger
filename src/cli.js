@@ -100,7 +100,7 @@ async function main() {
 
   createServer(config, {
     onListen: () => {
-      startSpinner.stop(`Server listening on http://${proxyHost}:${portNumber}/viewer`);
+      startSpinner.stop(`Server listening on http://${proxyHost}:${portNumber}/__viewer__`);
       note(endpointSummary, 'Endpoints');
     },
   });

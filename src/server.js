@@ -11,7 +11,7 @@ export function createServer(config, { onListen } = {}) {
   app.use(express.raw({ type: '*/*', limit: '50mb' }));
 
   // Viewer route - must come before the catch-all proxy
-  app.use('/viewer', createViewerRouter(config));
+  app.use('/__viewer__', createViewerRouter(config));
 
   // Health check
   app.get('/health', (req, res) => {
