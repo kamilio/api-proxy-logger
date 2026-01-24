@@ -209,8 +209,19 @@
             box-shadow: none;
         }
 
+        .btn.danger {
+            background: var(--danger);
+            box-shadow: 0 8px 18px rgba(178, 58, 58, 0.3);
+        }
+
         .btn:hover {
             transform: translateY(-1px);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
         }
 
         .grid {
@@ -666,6 +677,7 @@
 
             <section class="actions">
                 <button class="btn secondary" onclick="copyPython(this)">Copy Python</button>
+                <button class="btn danger" id="delete-btn" onclick="deleteEntry(this)">Delete</button>
             </section>
 
             <section class="tabs" role="tablist">
@@ -1135,6 +1147,35 @@
         function copyRequestBody(btn) {
             const body = window.LOG_ENTRY?.request?.body;
             copyToClipboard(formatJson(body), btn);
+        }
+
+        async function deleteEntry(btn) {
+            if (!confirm('Are you sure you want to delete this log entry? This action cannot be undone.')) {
+                return;
+            }
+
+            const provider = '<%= log._viewer_provider %>';
+            const filename = '<%= log._viewer_file %>';
+            const deleteUrl = `/viewer/${encodeURIComponent(provider)}/${encodeURIComponent(filename)}`;
+
+            btn.disabled = true;
+            btn.textContent = 'Deleting...';
+
+            try {
+                const response = await fetch(deleteUrl, { method: 'DELETE' });
+                if (response.ok) {
+                    window.location.href = '<%= backLink %>';
+                } else {
+                    const data = await response.json().catch(() => ({}));
+                    alert('Failed to delete: ' + (data.error || 'Unknown error'));
+                    btn.disabled = false;
+                    btn.textContent = 'Delete';
+                }
+            } catch (error) {
+                alert('Failed to delete: ' + error.message);
+                btn.disabled = false;
+                btn.textContent = 'Delete';
+            }
         }
 
         document.addEventListener('DOMContentLoaded', () => {

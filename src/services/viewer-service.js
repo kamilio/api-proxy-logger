@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises';
+import { readFile, unlink } from 'node:fs/promises';
 import { isAbsolute, join, relative, resolve } from 'node:path';
 import yaml from 'js-yaml';
 import { getRecentLogs } from '../logger.js';
@@ -69,7 +69,7 @@ function isPathWithin(baseDir, targetPath) {
   return relativePath && !relativePath.startsWith('..') && !isAbsolute(relativePath);
 }
 
-function resolveViewerLogPath(outputDir, provider, filename) {
+export function resolveViewerLogPath(outputDir, provider, filename) {
   if (!isSafeSegment(provider) || !isSafeSegment(filename)) return null;
   if (!filename.endsWith('.yaml')) return null;
 
@@ -79,4 +79,21 @@ function resolveViewerLogPath(outputDir, provider, filename) {
 
   if (!isPathWithin(logsDir, targetPath)) return null;
   return targetPath;
+}
+
+export async function deleteViewerLog(outputDir, provider, filename) {
+  const resolvedPath = resolveViewerLogPath(outputDir, provider, filename);
+  if (!resolvedPath) {
+    return { success: false, error: 'invalid_path' };
+  }
+
+  try {
+    await unlink(resolvedPath);
+    return { success: true };
+  } catch (error) {
+    if (error.code === 'ENOENT') {
+      return { success: false, error: 'not_found' };
+    }
+    throw error;
+  }
 }

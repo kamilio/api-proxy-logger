@@ -7,6 +7,7 @@ export function createViewerRouter(config) {
 
   router.get('/', controller.index);
   router.get('/:provider/:filename', controller.detail);
+  router.delete('/:provider/:filename', controller.delete);
   router.all('*', (req, res) => {
     res.status(404).json({ error: 'Not found' });
   });
