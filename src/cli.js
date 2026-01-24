@@ -80,7 +80,6 @@ async function main() {
   };
 
   intro('llm-debugger');
-  log.info(`Target: ${resolvedTargetUrl}`);
 
   const aliasLines = Object.keys(fileConfig.aliases || {})
     .map((alias) => {
@@ -91,7 +90,7 @@ async function main() {
     .filter(Boolean);
 
   const endpointSummary = [
-    `Proxy:  http://${proxyHost}:${portNumber}/* to ${resolvedTargetUrl}`,
+    `Proxy:  http://${proxyHost}:${portNumber}/ to ${resolvedTargetUrl}`,
     ...aliasLines,
   ].join('\n');
 
@@ -100,7 +99,7 @@ async function main() {
 
   createServer(config, {
     onListen: () => {
-      startSpinner.stop(`Server listening on http://${proxyHost}:${portNumber}/__viewer__`);
+      startSpinner.stop(`View http://${proxyHost}:${portNumber}/__viewer__`);
       note(endpointSummary, 'Endpoints');
     },
   });
