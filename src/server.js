@@ -73,15 +73,6 @@ export function createServer(config, { onListen } = {}) {
     }
   };
 
-  app.all('/proxy', (req, res) => {
-    res.redirect(307, '/');
-  });
-  app.all('/proxy/*', (req, res) => {
-    const originalUrl = req.originalUrl || req.url || '';
-    const stripped = originalUrl.replace(/^\/proxy/, '') || '/';
-    res.redirect(307, stripped.startsWith('/') ? stripped : `/${stripped}`);
-  });
-
   // Catch-all: proxy everything else
   app.all('*', handleProxy);
 
