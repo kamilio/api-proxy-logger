@@ -3,7 +3,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import yaml from 'js-yaml';
 import { DEFAULT_CONFIG } from './config.js';
-import { getConfigPath } from './paths.js';
+import { getConfigPath, getHomeConfigPath } from './paths.js';
 
 const TEMPLATE_CONFIG_PATH = resolve(
   dirname(fileURLToPath(import.meta.url)),
@@ -31,4 +31,13 @@ export function getConfigDisplayContent(configPath = getConfigPath()) {
     noRefs: true,
   });
   return ensureTrailingNewline(fallback);
+}
+
+export function getConfigEditPath() {
+  const configPath = getConfigPath();
+  const homeConfigPath = getHomeConfigPath();
+  if (resolve(configPath) === TEMPLATE_CONFIG_PATH) {
+    return homeConfigPath;
+  }
+  return configPath;
 }

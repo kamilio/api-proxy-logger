@@ -1,14 +1,16 @@
 #!/usr/bin/env node
 
 import 'dotenv/config';
+import { spawnSync } from 'node:child_process';
 import { copyFileSync, existsSync, mkdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { intro, log, note, spinner, outro } from '@clack/prompts';
 import { createServer } from './server.js';
 import { getConfigPath, getHomeConfigPath, getLogsDir } from './paths.js';
-import { getConfigDisplayContent } from './config-file.js';
+import { getConfigDisplayContent, getConfigEditPath } from './config-file.js';
 import { loadConfig } from './config.js';
+import { getEditorCandidates } from './editor.js';
 
 async function main() {
   const { flags, positionals } = parseArgs(process.argv.slice(2));
@@ -99,6 +101,7 @@ Usage:
   llm-debugger [options]
   llm-debugger init [--force]
   llm-debugger config show
+  llm-debugger config edit
 
 Options:
   --proxy-host <host>  Proxy host (default: localhost)
@@ -200,8 +203,31 @@ function runConfigCommand(subcommand) {
     return;
   }
 
+  if (subcommand === 'edit') {
+    runConfigEdit();
+    return;
+  }
+
   log.error(`Unknown config command: ${subcommand}`);
   process.exitCode = 1;
+}
+
+function runConfigEdit() {
+  loadConfig();
+  const configPath = getConfigEditPath();
+  const candidates = getEditorCandidates();
+
+  for (const candidate of candidates) {
+    const result = spawnSync(candidate.command, [configPath], {
+      stdio: 'inherit',
+      shell: candidate.shell,
+    });
+    if (!result.error && result.status === 0) {
+      return;
+    }
+  }
+
+  console.log(configPath);
 }
 
 main();

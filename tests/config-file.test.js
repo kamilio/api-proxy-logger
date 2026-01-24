@@ -1,14 +1,21 @@
-import { describe, it, afterEach } from 'node:test';
+import { describe, it, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert';
 import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
-import { getConfigDisplayContent } from '../src/config-file.js';
+import { fileURLToPath } from 'node:url';
+import { getConfigDisplayContent, getConfigEditPath } from '../src/config-file.js';
 
 describe('getConfigDisplayContent', () => {
   let testDir;
+  let originalEnv;
+
+  beforeEach(() => {
+    originalEnv = { ...process.env };
+  });
 
   afterEach(() => {
+    process.env = originalEnv;
     if (testDir && existsSync(testDir)) {
       rmSync(testDir, { recursive: true, force: true });
     }
@@ -32,5 +39,20 @@ describe('getConfigDisplayContent', () => {
     const content = getConfigDisplayContent(missingPath);
     assert.ok(content.includes('env:'));
     assert.strictEqual(existsSync(missingPath), false);
+  });
+
+  it('uses home config path when CONFIG_PATH points at the template', () => {
+    testDir = join(tmpdir(), `llm-debugger-config-${Date.now()}`);
+    mkdirSync(testDir, { recursive: true });
+    process.env.LLM_DEBUGGER_HOME = testDir;
+    const templatePath = resolve(
+      dirname(fileURLToPath(import.meta.url)),
+      '..',
+      'config.yaml'
+    );
+    process.env.CONFIG_PATH = templatePath;
+
+    const editPath = getConfigEditPath();
+    assert.strictEqual(editPath, join(testDir, 'config.yaml'));
   });
 });
