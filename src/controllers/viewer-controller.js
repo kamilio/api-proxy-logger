@@ -1,10 +1,11 @@
 import { shouldHideFromViewer } from '../config.js';
-import { renderViewer, renderViewerDetail } from '../viewer.js';
+import { renderViewer, renderViewerDetail, renderViewerCompare } from '../viewer.js';
 import {
   buildBackLink,
   deleteViewerLog,
   getViewerIndexData,
   loadViewerLog,
+  parseCompareLogSelection,
 } from '../services/viewer-service.js';
 import { buildPreviewModel } from '../services/viewer-preview.js';
 import {
@@ -88,6 +89,51 @@ export function createViewerController(config) {
       } catch (error) {
         console.error('Viewer detail error:', error.message);
         res.status(500).json({ error: 'Viewer detail error', message: error.message });
+      }
+    },
+
+    compare: async (req, res) => {
+      try {
+        const { selections, invalid } = parseCompareLogSelection(req.query.logs);
+        const backLink = buildBackLink(req.query);
+
+        if (invalid.length || selections.length < 2) {
+          const message = invalid.length
+            ? 'Invalid compare selection. Choose two or three valid log entries.'
+            : 'Select at least two logs to compare.';
+          const html = await renderViewerCompare({ logs: [], backLink, error: message });
+          res.status(400).type('html').send(html);
+          return;
+        }
+
+        const logs = await Promise.all(
+          selections.map(({ provider, filename }) => loadViewerLog(config.outputDir, provider, filename))
+        );
+
+        if (logs.some((log) => !log)) {
+          res.status(404).type('text').send('Not found');
+          return;
+        }
+
+        for (const log of logs) {
+          if (log?.request?.url) {
+            try {
+              const url = new URL(log.request.url);
+              if (shouldHideFromViewer(url.pathname)) {
+                res.status(404).type('text').send('Not found');
+                return;
+              }
+            } catch {
+              // Ignore malformed URLs for hide checks.
+            }
+          }
+        }
+
+        const html = await renderViewerCompare({ logs, backLink, error: null });
+        res.type('html').send(html);
+      } catch (error) {
+        console.error('Viewer compare error:', error.message);
+        res.status(500).json({ error: 'Viewer compare error', message: error.message });
       }
     },
 

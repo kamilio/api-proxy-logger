@@ -6,10 +6,12 @@ import { fileURLToPath } from 'node:url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const templatePath = join(__dirname, 'templates', 'viewer.ejs');
 const detailTemplatePath = join(__dirname, 'templates', 'viewer-detail.ejs');
+const compareTemplatePath = join(__dirname, 'templates', 'viewer-compare.ejs');
 const isDev = process.env.NODE_ENV !== 'production';
 
 let templateCache = null;
 let detailTemplateCache = null;
+let compareTemplateCache = null;
 
 async function getTemplate() {
   if (isDev) {
@@ -29,6 +31,16 @@ async function getDetailTemplate() {
     detailTemplateCache = await readFile(detailTemplatePath, 'utf-8');
   }
   return detailTemplateCache;
+}
+
+async function getCompareTemplate() {
+  if (isDev) {
+    return readFile(compareTemplatePath, 'utf-8');
+  }
+  if (!compareTemplateCache) {
+    compareTemplateCache = await readFile(compareTemplatePath, 'utf-8');
+  }
+  return compareTemplateCache;
 }
 
 export async function renderViewer({
@@ -52,5 +64,14 @@ export async function renderViewerDetail(log, backLink, preview) {
     log,
     backLink,
     preview,
+  });
+}
+
+export async function renderViewerCompare({ logs, backLink, error }) {
+  const template = await getCompareTemplate();
+  return ejs.render(template, {
+    logs,
+    backLink,
+    error,
   });
 }

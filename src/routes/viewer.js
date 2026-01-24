@@ -6,6 +6,7 @@ export function createViewerRouter(config) {
   const controller = createViewerController(config);
 
   router.get('/', controller.index);
+  router.get('/compare', controller.compare);
   router.get('/:provider/:filename', controller.detail);
   router.delete('/:provider/:filename', controller.delete);
   router.all('*', (req, res) => {

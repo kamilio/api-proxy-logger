@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLM Debugger</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Sora:wght@500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            color-scheme: light;
+            --bg: #f7f8fa;
+            --bg-strong: #eef1f4;
+            --panel: #ffffff;
+            --panel-alt: #f6f8fa;
+            --ink: #1d1f23;
+            --muted: #5d6670;
+            --accent: #10a37f;
+            --accent-strong: #0f8a6b;
+            --stroke: #e2e6ea;
+            --success: #1a7f4a;
+            --danger: #b3261e;
+            --code-bg: #f3f5f7;
+            --code-ink: #1f2933;
+            --code-border: #e1e5ea;
+            --shadow: 0 20px 50px rgba(15, 23, 42, 0.08);
+            --shadow-soft: 0 10px 26px rgba(15, 23, 42, 0.08);
+            --focus: rgba(16, 163, 127, 0.22);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: "IBM Plex Sans", "Helvetica Neue", sans-serif;
+            background:
+                radial-gradient(1200px 520px at 12% -10%, rgba(16, 163, 127, 0.12), transparent 60%),
+                radial-gradient(1000px 500px at 95% -20%, rgba(15, 23, 42, 0.08), transparent 60%),
+                linear-gradient(180deg, var(--bg) 0%, #f1f3f6 100%);
+            color: var(--ink);
+        }
+
+        .page {
+            min-height: 100vh;
+            padding: 32px 18px 64px;
+        }
+
+        .shell {
+            max-width: 1240px;
+            margin: 0 auto;
+            display: grid;
+            gap: 24px;
+        }
+
+        .back {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--accent-strong);
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .back::before {
+            content: "\2190";
+        }
+
+        .hero {
+            display: grid;
+            gap: 12px;
+            padding: 26px;
+            border-radius: 24px;
+            border: 1px solid var(--stroke);
+            background: var(--panel);
+            box-shadow: var(--shadow);
+            position: relative;
+            overflow: hidden;
+            animation: rise 600ms ease-out;
+        }
+
+        .hero::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(120deg, rgba(16, 163, 127, 0.12), transparent 60%);
+            pointer-events: none;
+        }
+
+        .hero-top {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .title {
+            font-family: "Sora", "Helvetica Neue", sans-serif;
+            font-size: clamp(1.6rem, 2vw + 1rem, 2.4rem);
+            margin: 0 0 6px;
+        }
+
+        .subtitle {
+            margin: 0;
+            color: var(--muted);
+        }
+
+        .pill-group {
+            display: inline-flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 999px;
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            font-weight: 700;
+            background: var(--bg-strong);
+            line-height: 1;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .pill.get { background: rgba(26, 127, 74, 0.12); color: #13633b; }
+        .pill.post { background: rgba(22, 98, 166, 0.12); color: #1c4a7d; }
+        .pill.put { background: rgba(200, 120, 28, 0.12); color: #7a4d16; }
+        .pill.delete { background: rgba(179, 38, 30, 0.12); color: #7e1f18; }
+        .pill.patch { background: rgba(96, 74, 155, 0.12); color: #4a3a8a; }
+
+        .pill.status.ok {
+            color: var(--success);
+            border: 1px solid rgba(47, 138, 74, 0.3);
+            background: rgba(47, 138, 74, 0.08);
+        }
+
+        .pill.status.bad {
+            color: var(--danger);
+            border: 1px solid rgba(178, 58, 58, 0.3);
+            background: rgba(178, 58, 58, 0.08);
+        }
+
+        .btn {
+            border: none;
+            border-radius: 14px;
+            padding: 10px 16px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            background: var(--accent);
+            color: #fff;
+            cursor: pointer;
+            transition: transform 180ms ease, box-shadow 180ms ease;
+            box-shadow: 0 10px 24px rgba(16, 163, 127, 0.28);
+            min-height: 40px;
+        }
+
+        .btn.secondary {
+            background: #fff;
+            color: var(--ink);
+            border: 1px solid var(--stroke);
+            box-shadow: none;
+        }
+
+        .compare-scroll {
+            overflow-x: auto;
+            padding-bottom: 12px;
+        }
+
+        .compare-grid {
+            display: grid;
+            grid-template-columns: repeat(var(--columns, 2), minmax(260px, 1fr));
+            gap: 16px;
+        }
+
+        .summary-card,
+        .compare-section,
+        .empty {
+            padding: 18px 20px;
+            border-radius: 20px;
+            border: 1px solid var(--stroke);
+            background: var(--panel);
+            display: grid;
+            gap: 12px;
+        }
+
+        .summary-card {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .summary-card::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(120deg, rgba(16, 163, 127, 0.08), transparent 60%);
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        .summary-header {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+            position: relative;
+            z-index: 1;
+        }
+
+        .summary-url {
+            font-family: "IBM Plex Mono", monospace;
+            font-size: 0.85rem;
+            font-weight: 600;
+            word-break: break-all;
+            position: relative;
+            z-index: 1;
+        }
+
+        .summary-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            font-size: 0.78rem;
+            color: var(--muted);
+            position: relative;
+            z-index: 1;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .section-header h3 {
+            margin: 0;
+            font-size: 0.95rem;
+        }
+
+        pre {
+            margin: 0;
+            background: var(--code-bg);
+            color: var(--code-ink);
+            padding: 14px;
+            border-radius: 16px;
+            border: 1px solid var(--code-border);
+            overflow-x: auto;
+            font-size: 0.8rem;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .empty {
+            text-align: center;
+            color: var(--muted);
+        }
+
+        .muted {
+            color: var(--muted);
+        }
+
+        .btn:focus-visible,
+        .back:focus-visible {
+            outline: none;
+            box-shadow: 0 0 0 3px var(--focus);
+        }
+
+        @keyframes rise {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @media (max-width: 720px) {
+            .hero {
+                padding: 20px;
+            }
+
+            .summary-card,
+            .compare-section {
+                padding: 16px;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                animation: none !important;
+                transition: none !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <% function formatSection(value) { %>
+        <% try { %>
+            <% if (value === undefined || value === null) return ''; %>
+            <% if (typeof value === 'string') return value; %>
+            <% return JSON.stringify(value, null, 2); %>
+        <% } catch (error) { %>
+            <% return String(value); %>
+        <% } %>
+    <% } %>
+    <% const sections = [ %>
+        <% { key: 'requestHeaders', title: 'Request headers' }, %>
+        <% { key: 'responseHeaders', title: 'Response headers' }, %>
+        <% { key: 'requestBody', title: 'Request body' }, %>
+        <% { key: 'responseBody', title: 'Response body' }, %>
+    <% ]; %>
+    <div class="page">
+        <div class="shell">
+            <a class="back" href="<%= backLink %>">Back to viewer</a>
+
+            <section class="hero">
+                <div class="hero-top">
+                    <div>
+                        <h1 class="title">Compare logs</h1>
+                        <p class="subtitle">Inspect up to three requests side-by-side.</p>
+                    </div>
+                    <button class="btn secondary" type="button" disabled>Copy Markdown</button>
+                </div>
+                <% if (logs && logs.length) { %>
+                    <div class="pill-group">
+                        <span class="pill"><%= logs.length %> selected</span>
+                        <span class="pill">Baseline: Log 1</span>
+                    </div>
+                <% } %>
+            </section>
+
+            <% if (error) { %>
+                <section class="empty"><%= error %></section>
+            <% } else { %>
+                <section class="compare-scroll">
+                    <div class="compare-grid" style="--columns: <%= logs.length %>;">
+                        <% logs.forEach((log, index) => { %>
+                            <% const providerName = log.provider || 'unknown'; %>
+                            <article class="summary-card">
+                                <div class="summary-header">
+                                    <span class="pill">Log <%= index + 1 %></span>
+                                    <span class="pill <%= (log.request.method || '').toLowerCase() %>"><%= log.request.method %></span>
+                                    <span class="pill status <%= log.response.status < 400 ? 'ok' : 'bad' %>"><%= log.response.status %></span>
+                                </div>
+                                <div class="summary-url"><%= log.request.url %></div>
+                                <div class="summary-meta">
+                                    <span><%= providerName %></span>
+                                    <span><%= new Date(log.timestamp).toLocaleString() %></span>
+                                    <span><%= log.duration_ms || 0 %>ms</span>
+                                </div>
+                            </article>
+                        <% }) %>
+
+                        <% sections.forEach((section) => { %>
+                            <% logs.forEach((log) => { %>
+                                <section class="compare-section">
+                                    <div class="section-header">
+                                        <h3><%= section.title %></h3>
+                                        <span class="muted">View raw</span>
+                                    </div>
+                                    <pre><code><%= formatSection(
+                                        section.key === 'requestHeaders' ? log?.request?.headers :
+                                        section.key === 'responseHeaders' ? log?.response?.headers :
+                                        section.key === 'requestBody' ? log?.request?.body :
+                                        log?.response?.body
+                                    ) %></code></pre>
+                                </section>
+                            <% }) %>
+                        <% }) %>
+                    </div>
+                </section>
+            <% } %>
+        </div>
+    </div>
+</body>
+</html>
