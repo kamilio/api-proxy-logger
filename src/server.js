@@ -1,5 +1,6 @@
 import express from 'express';
 import { createProxyHandler, createStreamingProxyHandler } from './proxy.js';
+import { parseAliasPath, resolveAliasConfig } from './aliases.js';
 import { shouldIgnoreRoute } from './config.js';
 import { createViewerRouter } from './routes/viewer.js';
 
@@ -20,14 +21,44 @@ export function createServer(config, { onListen } = {}) {
   // Proxy requests to configured base target
   const handleProxy = async (req, res) => {
     const proxyPath = getProxyPath(req);
-    const proxyPathname = new URL(proxyPath, 'http://proxy.local').pathname;
+    const proxyUrl = new URL(proxyPath, 'http://proxy.local');
+    const aliasInfo = parseAliasPath(proxyUrl.pathname);
+    if (proxyUrl.pathname.startsWith('/__proxy__/') && !aliasInfo) {
+      res.status(404).json({ error: 'Unknown alias' });
+      return;
+    }
+
+    let proxyPathname = proxyUrl.pathname;
+    let targetBaseUrl = config.targetUrl;
+    let targetPath = proxyPath;
+    let proxyHeaders = null;
+    let providerLabel = config.provider;
+
+    if (aliasInfo) {
+      const aliasConfig = resolveAliasConfig(config.aliases, aliasInfo.alias);
+      if (!aliasConfig) {
+        res.status(404).json({ error: 'Unknown alias' });
+        return;
+      }
+      proxyPathname = aliasInfo.path;
+      targetBaseUrl = aliasConfig.url;
+      targetPath = `${aliasInfo.path}${proxyUrl.search}${proxyUrl.hash}`;
+      proxyHeaders = aliasConfig.headers;
+      providerLabel = aliasInfo.alias;
+    }
+
     if (shouldIgnoreRoute(proxyPathname)) {
       res.status(404).json({ error: 'Not found' });
       return;
     }
 
-    const targetUrl = buildTargetUrl(config.targetUrl, proxyPath);
-    const proxyConfig = { ...config, targetUrl, provider: config.provider };
+    const targetUrl = buildTargetUrl(targetBaseUrl, targetPath);
+    const proxyConfig = {
+      ...config,
+      targetUrl,
+      provider: providerLabel,
+      proxyHeaders,
+    };
 
     try {
       const isStreaming = isStreamingRequest(req);

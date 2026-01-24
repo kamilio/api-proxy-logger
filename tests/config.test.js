@@ -111,5 +111,6 @@ describe('config loading', () => {
     assert.ok(config);
     assert.ok(Array.isArray(config.ignore_routes));
     assert.ok(Array.isArray(config.hide_from_viewer));
+    assert.ok(config.aliases && typeof config.aliases === 'object');
   });
 });

@@ -10,6 +10,7 @@ export const DEFAULT_CONFIG = {
   env: {},
   ignore_routes: [],
   hide_from_viewer: [],
+  aliases: {},
 };
 
 let configCache = null;
@@ -31,10 +32,13 @@ export function loadConfig() {
   try {
     const content = readFileSync(configPath, 'utf-8');
     const parsed = yaml.load(content) || {};
+    const parsedAliases =
+      parsed.aliases && typeof parsed.aliases === 'object' ? parsed.aliases : {};
     configCache = {
       ...DEFAULT_CONFIG,
       ...parsed,
       env: { ...DEFAULT_CONFIG.env, ...(parsed.env || {}) },
+      aliases: { ...DEFAULT_CONFIG.aliases, ...parsedAliases },
     };
     cachedPath = configPath;
   } catch (error) {

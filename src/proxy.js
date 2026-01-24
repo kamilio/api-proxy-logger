@@ -35,6 +35,9 @@ function parseBody(body) {
 export async function createProxyHandler(req, res, config) {
   const targetUrl = config.targetUrl;
   const headers = filterHeaders(req.headers, EXCLUDED_REQUEST_HEADERS);
+  const proxyHeaders =
+    config.proxyHeaders && typeof config.proxyHeaders === 'object' ? config.proxyHeaders : {};
+  const outgoingHeaders = { ...headers, ...proxyHeaders };
   const method = req.method;
   const body = req.body && req.body.length > 0 ? req.body : undefined;
 
@@ -42,7 +45,7 @@ export async function createProxyHandler(req, res, config) {
 
   const fetchOptions = {
     method,
-    headers,
+    headers: outgoingHeaders,
   };
 
   if (body && !['GET', 'HEAD'].includes(method)) {
@@ -61,7 +64,7 @@ export async function createProxyHandler(req, res, config) {
     provider: config.provider,
     method,
     url: targetUrl,
-    requestHeaders: req.headers,
+    requestHeaders: outgoingHeaders,
     requestBody: parseBody(body),
     status: response.status,
     responseHeaders: Object.fromEntries(response.headers.entries()),
@@ -81,6 +84,9 @@ export async function createProxyHandler(req, res, config) {
 export async function createStreamingProxyHandler(req, res, config) {
   const targetUrl = config.targetUrl;
   const headers = filterHeaders(req.headers, EXCLUDED_REQUEST_HEADERS);
+  const proxyHeaders =
+    config.proxyHeaders && typeof config.proxyHeaders === 'object' ? config.proxyHeaders : {};
+  const outgoingHeaders = { ...headers, ...proxyHeaders };
   const method = req.method;
   const body = req.body && req.body.length > 0 ? req.body : undefined;
 
@@ -88,7 +94,7 @@ export async function createStreamingProxyHandler(req, res, config) {
 
   const fetchOptions = {
     method,
-    headers,
+    headers: outgoingHeaders,
   };
 
   if (body && !['GET', 'HEAD'].includes(method)) {
@@ -131,7 +137,7 @@ export async function createStreamingProxyHandler(req, res, config) {
         provider: config.provider,
         method,
         url: targetUrl,
-        requestHeaders: req.headers,
+        requestHeaders: outgoingHeaders,
         requestBody: parseBody(body),
         status: response.status,
         responseHeaders: Object.fromEntries(response.headers.entries()),

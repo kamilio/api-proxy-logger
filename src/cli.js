@@ -12,6 +12,7 @@ import { getConfigDisplayContent, getConfigEditPath } from './config-file.js';
 import { loadConfig } from './config.js';
 import { getEditorCandidates } from './editor.js';
 import { findAvailablePort, parsePortSpec } from './ports.js';
+import { resolveAliasConfig } from './aliases.js';
 
 async function main() {
   const { flags, positionals } = parseArgs(process.argv.slice(2));
@@ -35,7 +36,7 @@ async function main() {
     return;
   }
 
-  loadConfig();
+  const fileConfig = loadConfig();
 
   const proxyHost = process.env.PROXY_HOST || 'localhost';
 
@@ -74,13 +75,23 @@ async function main() {
     outputDir: getLogsDir(),
     targetUrl: resolvedTargetUrl,
     provider: providerLabel,
+    aliases: fileConfig.aliases,
   };
 
   intro('llm-debugger');
   log.info(`Target: ${resolvedTargetUrl}`);
 
+  const aliasLines = Object.keys(fileConfig.aliases || {})
+    .map((alias) => {
+      const resolved = resolveAliasConfig(fileConfig.aliases, alias);
+      if (!resolved) return null;
+      return `Alias:  http://${proxyHost}:${portNumber}/__proxy__/${alias} -> ${resolved.url}`;
+    })
+    .filter(Boolean);
+
   const endpointSummary = [
     `Proxy:  http://${proxyHost}:${portNumber}/* to ${resolvedTargetUrl}`,
+    ...aliasLines,
   ].join('\n');
 
   const startSpinner = spinner();
