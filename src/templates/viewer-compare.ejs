@@ -189,55 +189,51 @@
         }
 
         .timeline-row {
-            position: relative;
-            height: 32px;
-            display: flex;
+            display: grid;
+            grid-template-columns: minmax(180px, 240px) 1fr;
+            gap: 12px;
             align-items: center;
             font-variant-numeric: tabular-nums;
         }
 
-        .timeline-line {
-            position: absolute;
-            left: 0;
-            right: 0;
-            top: 50%;
-            height: 2px;
-            background: var(--stroke);
-            transform: translateY(-50%);
+        .timeline-label {
+            display: grid;
+            gap: 4px;
         }
 
-        .timeline-dot {
-            position: absolute;
-            left: var(--position, 50%);
-            width: 10px;
-            height: 10px;
+        .timeline-label strong {
+            font-size: 0.85rem;
+        }
+
+        .timeline-meta {
+            font-size: 0.72rem;
+            color: var(--muted);
+        }
+
+        .timeline-track {
+            position: relative;
+            height: 16px;
             border-radius: 999px;
-            background: var(--accent);
-            border: 2px solid #fff;
-            box-shadow: 0 6px 12px rgba(16, 163, 127, 0.2);
-            transform: translate(-50%, -50%);
-            top: 50%;
-            z-index: 1;
+            background: var(--bg-strong);
+            overflow: hidden;
         }
 
         .timeline-bar {
             position: absolute;
-            left: var(--position, 50%);
-            height: 4px;
-            width: var(--duration, 24px);
-            background: rgba(16, 163, 127, 0.35);
-            border-radius: 999px;
-            transform: translateY(-50%);
-            top: 50%;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: var(--duration, 0%);
+            background: linear-gradient(90deg, rgba(16, 163, 127, 0.55), rgba(16, 163, 127, 0.9));
         }
 
-        .timeline-label {
+        .timeline-value {
             position: absolute;
-            left: calc(var(--position, 50%) + 14px);
-            font-size: 0.75rem;
-            color: var(--muted);
-            white-space: nowrap;
-            top: 4px;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 0.72rem;
+            color: rgba(29, 31, 35, 0.7);
         }
 
         .compare-scroll {
@@ -470,16 +466,19 @@
                 <section class="empty"><%= error %></section>
             <% } else { %>
                 <% if (logs && logs.length) { %>
-                    <section class="timeline" aria-label="Request timeline">
-                        <div class="timeline-title">Request timeline</div>
+                    <section class="timeline" aria-label="Request duration comparison">
+                        <div class="timeline-title">Request duration comparison</div>
                         <% logs.forEach((log, index) => { %>
                             <div class="timeline-row"
-                                data-timestamp="<%= log.timestamp %>"
                                 data-duration="<%= log.duration_ms || 0 %>">
-                                <span class="timeline-line"></span>
-                                <span class="timeline-dot"></span>
-                                <span class="timeline-bar"></span>
-                                <span class="timeline-label">Log <%= index + 1 %> · <%= new Date(log.timestamp).toLocaleTimeString() %> · <%= log.duration_ms || 0 %>ms</span>
+                                <div class="timeline-label">
+                                    <strong>Log <%= index + 1 %> · <%= log.request.method %> · <%= log.response.status %></strong>
+                                    <span class="timeline-meta"><%= log.provider || 'unknown' %> · <%= new Date(log.timestamp).toLocaleTimeString() %></span>
+                                </div>
+                                <div class="timeline-track">
+                                    <span class="timeline-bar"></span>
+                                    <span class="timeline-value"><%= log.duration_ms || 0 %>ms</span>
+                                </div>
                             </div>
                         <% }) %>
                     </section>
@@ -626,25 +625,14 @@
             const rows = Array.from(document.querySelectorAll('.timeline-row'));
             if (!rows.length) return;
 
-            const timestamps = rows.map((row) => Date.parse(row.dataset.timestamp || '') || 0);
             const durations = rows.map((row) => Number(row.dataset.duration || 0));
-            const min = Math.min(...timestamps);
-            const max = Math.max(...timestamps);
-            const range = Math.max(max - min, 1);
             const maxDuration = Math.max(...durations, 1);
 
             rows.forEach((row, index) => {
-                let position;
-                if (max === min) {
-                    position = ((index + 1) / (rows.length + 1)) * 100;
-                } else {
-                    position = ((timestamps[index] - min) / range) * 100;
-                }
-                position = Math.min(96, Math.max(4, position));
-                row.style.setProperty('--position', `${position}%`);
-
-                const durationWidth = Math.max(18, Math.round((durations[index] / maxDuration) * 120));
-                row.style.setProperty('--duration', `${durationWidth}px`);
+                const value = durations[index];
+                const percent = Math.round((value / maxDuration) * 100);
+                const clamped = Math.min(100, Math.max(4, percent));
+                row.style.setProperty('--duration', `${clamped}%`);
             });
         }
 
