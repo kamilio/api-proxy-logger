@@ -34,3 +34,8 @@ export function getLogsDir() {
   const baseDir = getBaseDir();
   return resolvePath(process.env.LOG_OUTPUT_DIR || join(baseDir, 'logs'));
 }
+
+export function getPidFilePath() {
+  const baseDir = getBaseDir();
+  return resolvePath(join(baseDir, '.pid'));
+}

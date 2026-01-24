@@ -34,8 +34,6 @@ async function getDetailTemplate() {
 export async function renderViewer({
   logs,
   limit,
-  providerFilter,
-  providers,
   baseUrlFilters,
   methodFilters,
 }) {
@@ -43,8 +41,6 @@ export async function renderViewer({
   return ejs.render(template, {
     logs,
     limit,
-    providerFilter,
-    providers,
     baseUrlFilters,
     methodFilters,
   });

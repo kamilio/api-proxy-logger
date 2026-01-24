@@ -9,6 +9,7 @@ node_modules/
 
 # Logs
 logs/
+.test-data/
 
 # IDE
 .idea/

@@ -103,4 +103,20 @@ describe('paths module', () => {
     });
   });
 
+  describe('getPidFilePath', () => {
+    it('should return .pid in base dir by default', async () => {
+      delete process.env.LLM_DEBUGGER_HOME;
+      const { getPidFilePath, DEFAULT_BASE_DIR } = await import(`../src/paths.js?t=${Date.now()}`);
+      const result = getPidFilePath();
+      assert.strictEqual(result, join(DEFAULT_BASE_DIR, '.pid'));
+    });
+
+    it('should use LLM_DEBUGGER_HOME when set', async () => {
+      process.env.LLM_DEBUGGER_HOME = '/custom/base';
+      const { getPidFilePath } = await import(`../src/paths.js?t=${Date.now()}`);
+      const result = getPidFilePath();
+      assert.strictEqual(result, join('/custom/base', '.pid'));
+    });
+  });
+
 });

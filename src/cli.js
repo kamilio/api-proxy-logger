@@ -7,13 +7,12 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { intro, log, note, spinner, outro } from '@clack/prompts';
 import { createServer } from './server.js';
-import { getConfigPath, getHomeConfigPath, getLogsDir } from './paths.js';
+import { getConfigPath, getHomeConfigPath } from './paths.js';
 import { getConfigDisplayContent, getConfigEditPath } from './config-file.js';
-import { loadConfig } from './config.js';
 import { getEditorCandidates } from './editor.js';
-import { findAvailablePort, parsePortSpec } from './ports.js';
 import { resolveAliasConfig } from './aliases.js';
 import { addAliasToConfig, removeAliasFromConfig } from './config-aliases.js';
+import { buildServerConfig } from './server-config.js';
 
 async function main() {
   const { flags, positionals } = parseArgs(process.argv.slice(2));
@@ -37,47 +36,13 @@ async function main() {
     return;
   }
 
-  const fileConfig = loadConfig();
-
-  const proxyHost = process.env.PROXY_HOST || 'localhost';
-
-  const proxyPortSpec = process.env.PROXY_PORT || '8000-8010';
-  const portSpec = parsePortSpec(proxyPortSpec);
-  const portNumber = await findAvailablePort(proxyHost, portSpec);
-
-  const targetUrl = process.env.TARGET_URL;
-  if (!targetUrl) {
-    throw new Error('TARGET_URL is required. Use --target <url>.');
-  }
-
-  let providerLabel = 'unknown';
-  let resolvedTargetUrl = targetUrl;
-  let parsedTarget;
-  try {
-    parsedTarget = new URL(targetUrl);
-  } catch {
-    throw new Error('TARGET_URL must be a valid URL (e.g. https://api.openai.com)');
-  }
-
-  if (process.env.TARGET_PORT) {
-    const targetPort = parseInt(process.env.TARGET_PORT, 10);
-    if (!Number.isFinite(targetPort) || targetPort <= 0 || targetPort > 65535) {
-      throw new Error('TARGET_PORT must be a valid TCP port (1-65535)');
-    }
-    parsedTarget.port = String(targetPort);
-    resolvedTargetUrl = parsedTarget.toString();
-  }
-
-  providerLabel = parsedTarget.hostname || parsedTarget.host || 'unknown';
-
-  const config = {
-    host: proxyHost,
-    port: portNumber,
-    outputDir: getLogsDir(),
-    targetUrl: resolvedTargetUrl,
-    provider: providerLabel,
-    aliases: fileConfig.aliases,
-  };
+  const {
+    config,
+    fileConfig,
+    proxyHost,
+    portNumber,
+    resolvedTargetUrl,
+  } = await buildServerConfig();
 
   intro('llm-debugger');
 

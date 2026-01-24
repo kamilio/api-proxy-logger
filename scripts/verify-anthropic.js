@@ -2,6 +2,7 @@
 
 import 'dotenv/config';
 import { getLogsDir } from '../src/paths.js';
+import { startVerifyServer, stopVerifyServer } from './verify-helpers.js';
 
 /**
  * Verify the proxy works with Anthropic API
@@ -12,45 +13,42 @@ if (!apiKey) {
   throw new Error('POE_API_KEY environment variable is required');
 }
 
-const proxyHost = process.env.PROXY_HOST;
-if (!proxyHost) {
-  throw new Error('PROXY_HOST environment variable is required');
-}
-
-const proxyPort = process.env.PROXY_PORT;
-if (!proxyPort) {
-  throw new Error('PROXY_PORT environment variable is required');
-}
-
-const proxyUrl = `http://${proxyHost}:${proxyPort}`;
-
 async function main() {
-  console.log(`Testing proxy at ${proxyUrl}\n`);
+  let server;
+  try {
+    const verifyServer = await startVerifyServer();
+    server = verifyServer.server;
+    const proxyUrl = verifyServer.proxyUrl;
 
-  const response = await fetch(`${proxyUrl}/v1/messages`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 100,
-      messages: [{ role: 'user', content: 'Say "Hello from proxy test!" and nothing else.' }],
-    }),
-  });
+    console.log(`Testing proxy at ${proxyUrl}\n`);
 
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`HTTP ${response.status}: ${text}`);
+    const response = await fetch(`${proxyUrl}/v1/messages`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4.5',
+        max_tokens: 100,
+        messages: [{ role: 'user', content: 'Say "Hello from proxy test!" and nothing else.' }],
+      }),
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`HTTP ${response.status}: ${text}`);
+    }
+
+    const data = await response.json();
+    console.log('Response:');
+    console.log(data.content?.[0]?.text || JSON.stringify(data, null, 2));
+
+    console.log(`\n\nVerification complete! Check ${getLogsDir()} for the captured request.`);
+  } finally {
+    await stopVerifyServer(server);
   }
-
-  const data = await response.json();
-  console.log('Response:');
-  console.log(data.content?.[0]?.text || JSON.stringify(data, null, 2));
-
-  console.log(`\n\nVerification complete! Check ${getLogsDir()} for the captured request.`);
 }
 
 main();

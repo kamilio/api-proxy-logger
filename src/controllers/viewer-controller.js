@@ -18,14 +18,12 @@ export function createViewerController(config) {
   return {
     index: async (req, res) => {
       const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 100);
-      const providerFilter = req.query.provider ? String(req.query.provider) : null;
       const baseUrlFilters = normalizeBaseUrlFilters(parseCsvParam(req.query.baseUrl));
       const methodFilters = normalizeMethodFilters(parseCsvParam(req.query.method));
-      const { logs, providerMeta } = await getViewerIndexData(
+      const { logs } = await getViewerIndexData(
         config.outputDir,
         {
           limit,
-          provider: providerFilter,
           baseUrls: baseUrlFilters,
           methods: methodFilters,
         }
@@ -54,8 +52,6 @@ export function createViewerController(config) {
         {
           logs: processedLogs,
           limit,
-          providerFilter,
-          providers: providerMeta.map((provider) => provider.name),
           baseUrlFilters,
           methodFilters,
         }

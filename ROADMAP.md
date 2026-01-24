@@ -1,84 +1,40 @@
 # Roadmap
 
-## Config cli `config edit`
+## Agentic Testing
 
-Add cli command to edit config
+### Background Process Management
 
-Use $EDITOR env var, fallback to `open` (macOS) / `xdg-open` (Linux). If neither works, print the config path.
+`npm start` - starts server in background, writes PID to `$LLM_DEBUGGER_HOME/.pid`, outputs startup message and exits
+`npm run stop` - reads PID file, kills process, removes PID file
+`npm run restart` - runs stop then start
 
-## Config cli `config show`
+Implementation:
+- PID file location: `$LLM_DEBUGGER_HOME/.pid`
+- On start: check if PID file exists and process is running, fail if so
+- On stop: read PID, send SIGTERM, wait for exit, remove PID file
 
-Print current config to stdout (read-only)
+### Test Data Folder
 
-## Port discovery
+- Folder name: `.test-data`
+- Added to `.gitignore`
+- Usage: `LLM_DEBUGGER_HOME=.test-data npm start`
 
-`--port 8000` uses fixed port (fail if occupied)
-`--port 8000-8010` uses range (auto-discover first available)
-Default is range 8000-8010
+### API Verification
 
-When default port is taken, try next, until you find empty.
+Existing scripts in `scripts/`:
+- `verify-anthropic.js` - makes Anthropic API call through proxy
+- `verify-openai.js` - makes OpenAI API call through proxy
 
-Make sure to only discover ports when occupied, not when for some reason it fails.
+Required env vars (in `.env`):
+- `POE_API_KEY`
+- `PROXY_HOST`
+- `PROXY_PORT`
 
-If all ports in the range are occupied, error out with a message listing the attempted range.
+Proxies to `api.poe.com`.
 
-## Proxy aliases in config
+### Playwright Screenshot Tools
 
-Alias proxy
+`npm run screenshot_index` - captures screenshot of viewer index page, prints the screenshot URL
+`npm run screenshot_detail` - captures screenshot of detail view (uses newest log in `.test-data`), prints the screenshot URL
 
-`localhost/__proxy__/<alias>`
-
-```yaml
-aliases:
-    poe:
-        url: "https://api.poe.com"
-    openrouter:
-        url: "https://openrouter.ai"
-        headers:
-            Authorization: "Bearer ${OPENROUTER_KEY}"
-```
-
-Headers support environment variable interpolation via `${VAR}` syntax.
-
-Default is
-
-```yaml
-# <comment explaining the config schema>
-aliases: {}
-```
-
-The stdout output when running should include all aliases
-
-## cli config add-alias <alias> <url>
-
-## cli config remove-alias <alias>
-
-## viewer - filter by base URL
-
-The viewer should have ability to filter by base URL
-The filter must be persisted in URL as query params
-There's a badge with baseurl, clicking it would activate filter
-
-Supports multiple filters: `?baseUrl=api.poe.com,openrouter.ai`
-Supports method filter: `?method=POST` or `?method=GET,POST`
-
-## Simplify path configuration
-
-Use only `LLM_DEBUGGER_HOME` as the single path configuration env var (default: `~/.llm-debugger`).
-
-Derived paths:
-
-- Config: `$LLM_DEBUGGER_HOME/config.yaml`
-- Logs: `$LLM_DEBUGGER_HOME/logs/`
-
-Remove `LOG_OUTPUT_DIR` and `CONFIG_PATH` from documentation. Keep them as undocumented advanced overrides only.
-
-Update README to reflect this change.
-
-## Remove `/proxy` redirect routes
-
-Remove the legacy `/proxy` and `/proxy/*` redirect routes from `server.js`. These were a workaround that's no longer needed - the catch-all handler proxies everything directly.
-
-## Rename `/viewer` to `/__viewer__`
-
-Rename the viewer route from `/viewer` to `/__viewer__` to avoid conflicts with proxied APIs that might have their own `/viewer` endpoint.
+Agent analyzes screenshots to verify UI is correct and well designed.

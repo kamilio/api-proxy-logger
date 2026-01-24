@@ -55,9 +55,6 @@ export function buildBackLink(query) {
   if (query?.limit) {
     params.set('limit', String(query.limit));
   }
-  if (query?.provider) {
-    params.set('provider', String(query.provider));
-  }
   if (query?.baseUrl) {
     params.set('baseUrl', String(query.baseUrl));
   }

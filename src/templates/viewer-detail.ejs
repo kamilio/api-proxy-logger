@@ -6,25 +6,28 @@
     <title>LLM Debugger</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Source+Sans+3:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Sora:wght@500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
     <style>
         :root {
             color-scheme: light;
-            --bg: #f6f1ea;
-            --bg-strong: #efe5d9;
+            --bg: #f7f8fa;
+            --bg-strong: #eef1f4;
             --panel: #ffffff;
-            --panel-alt: #fcf7f0;
-            --ink: #1e1b18;
-            --muted: #6f655b;
-            --accent: #c0583c;
-            --accent-strong: #9f4530;
-            --stroke: #e6d8c8;
-            --success: #2f8a4a;
-            --danger: #b23a3a;
-            --code-bg: #1f1a16;
-            --code-ink: #f4eee7;
-            --shadow: 0 18px 45px rgba(40, 30, 20, 0.12);
+            --panel-alt: #f6f8fa;
+            --ink: #1d1f23;
+            --muted: #5d6670;
+            --accent: #10a37f;
+            --accent-strong: #0f8a6b;
+            --stroke: #e2e6ea;
+            --success: #1a7f4a;
+            --danger: #b3261e;
+            --code-bg: #f3f5f7;
+            --code-ink: #1f2933;
+            --code-border: #e1e5ea;
+            --shadow: 0 20px 50px rgba(15, 23, 42, 0.08);
+            --shadow-soft: 0 10px 26px rgba(15, 23, 42, 0.08);
+            --focus: rgba(16, 163, 127, 0.22);
         }
 
         * {
@@ -33,11 +36,11 @@
 
         body {
             margin: 0;
-            font-family: "Source Sans 3", "Helvetica Neue", sans-serif;
+            font-family: "IBM Plex Sans", "Helvetica Neue", sans-serif;
             background:
-                radial-gradient(1200px 500px at 6% -10%, rgba(255, 203, 144, 0.7), transparent 60%),
-                radial-gradient(900px 450px at 90% -20%, rgba(242, 152, 109, 0.5), transparent 60%),
-                linear-gradient(180deg, var(--bg) 0%, #fbf7f2 100%);
+                radial-gradient(1200px 520px at 12% -10%, rgba(16, 163, 127, 0.12), transparent 60%),
+                radial-gradient(1000px 500px at 95% -20%, rgba(15, 23, 42, 0.08), transparent 60%),
+                linear-gradient(180deg, var(--bg) 0%, #f1f3f6 100%);
             color: var(--ink);
         }
 
@@ -70,7 +73,7 @@
             display: grid;
             gap: 16px;
             padding: 26px;
-            border-radius: 26px;
+            border-radius: 24px;
             border: 1px solid var(--stroke);
             background: var(--panel);
             box-shadow: var(--shadow);
@@ -83,12 +86,12 @@
             content: "";
             position: absolute;
             inset: 0;
-            background: linear-gradient(120deg, rgba(193, 88, 60, 0.12), transparent 60%);
+            background: linear-gradient(120deg, rgba(16, 163, 127, 0.12), transparent 60%);
             pointer-events: none;
         }
 
         .title {
-            font-family: "Space Grotesk", "Arial Black", sans-serif;
+            font-family: "Sora", "Helvetica Neue", sans-serif;
             font-size: clamp(1.5rem, 2vw + 1rem, 2.2rem);
             margin: 0 0 8px;
             position: relative;
@@ -159,18 +162,18 @@
         }
 
         .pill.shape {
-            background: rgba(193, 88, 60, 0.12);
+            background: rgba(16, 163, 127, 0.12);
             color: var(--accent-strong);
         }
 
-        .pill.get { background: rgba(47, 138, 74, 0.15); color: #1f6a36; }
-        .pill.post { background: rgba(46, 111, 198, 0.15); color: #25518f; }
-        .pill.put { background: rgba(212, 140, 34, 0.15); color: #8b5314; }
-        .pill.delete { background: rgba(178, 58, 58, 0.15); color: #8f2c2c; }
-        .pill.patch { background: rgba(138, 64, 162, 0.15); color: #6a2c7a; }
+        .pill.get { background: rgba(26, 127, 74, 0.12); color: #13633b; }
+        .pill.post { background: rgba(22, 98, 166, 0.12); color: #1c4a7d; }
+        .pill.put { background: rgba(200, 120, 28, 0.12); color: #7a4d16; }
+        .pill.delete { background: rgba(179, 38, 30, 0.12); color: #7e1f18; }
+        .pill.patch { background: rgba(96, 74, 155, 0.12); color: #4a3a8a; }
 
         .url {
-            font-family: "JetBrains Mono", monospace;
+            font-family: "IBM Plex Mono", monospace;
             font-size: 0.9rem;
             color: var(--ink);
             font-weight: 600;
@@ -199,23 +202,24 @@
             color: #fff;
             cursor: pointer;
             transition: transform 180ms ease, box-shadow 180ms ease;
-            box-shadow: 0 8px 18px rgba(193, 88, 60, 0.3);
+            box-shadow: 0 10px 24px rgba(16, 163, 127, 0.28);
         }
 
         .btn.secondary {
-            background: var(--panel-alt);
-            color: var(--accent-strong);
+            background: #fff;
+            color: var(--ink);
             border: 1px solid var(--stroke);
             box-shadow: none;
         }
 
         .btn.danger {
             background: var(--danger);
-            box-shadow: 0 8px 18px rgba(178, 58, 58, 0.3);
+            box-shadow: 0 10px 24px rgba(179, 38, 30, 0.28);
         }
 
         .btn:hover {
             transform: translateY(-1px);
+            box-shadow: 0 16px 32px rgba(15, 23, 42, 0.18);
         }
 
         .btn:disabled {
@@ -256,7 +260,7 @@
         .tab-button.is-active {
             background: var(--accent);
             color: #fff;
-            box-shadow: 0 10px 24px rgba(193, 88, 60, 0.25);
+            box-shadow: 0 10px 24px rgba(16, 163, 127, 0.25);
         }
 
         .tab-panel {
@@ -303,26 +307,26 @@
         .message-card {
             border-radius: 18px;
             border: 1px solid var(--stroke);
-            background: var(--panel-alt);
+            background: #fff;
             padding: 14px 16px;
             display: grid;
             gap: 10px;
         }
 
         .message-card.role-system {
-            border-left: 4px solid rgba(178, 58, 58, 0.5);
+            border-left: 4px solid rgba(179, 38, 30, 0.45);
         }
 
         .message-card.role-user {
-            border-left: 4px solid rgba(46, 111, 198, 0.5);
+            border-left: 4px solid rgba(22, 98, 166, 0.45);
         }
 
         .message-card.role-assistant {
-            border-left: 4px solid rgba(47, 138, 74, 0.5);
+            border-left: 4px solid rgba(26, 127, 74, 0.45);
         }
 
         .message-card.role-tool {
-            border-left: 4px solid rgba(138, 64, 162, 0.5);
+            border-left: 4px solid rgba(96, 74, 155, 0.45);
         }
 
         .message-meta {
@@ -356,7 +360,7 @@
         .message-tag {
             padding: 4px 8px;
             border-radius: 999px;
-            background: rgba(193, 88, 60, 0.12);
+            background: rgba(16, 163, 127, 0.12);
             color: var(--accent-strong);
             font-weight: 600;
         }
@@ -378,7 +382,7 @@
         .message-json,
         .message-reasoning,
         .message-refusal {
-            background: rgba(31, 26, 22, 0.05);
+            background: rgba(15, 23, 42, 0.04);
             border-radius: 12px;
             padding: 10px 12px;
         }
@@ -398,7 +402,7 @@
         .message-tool code,
         .message-json code,
         .message-reasoning code {
-            font-family: "JetBrains Mono", monospace;
+            font-family: "IBM Plex Mono", monospace;
         }
 
         .message-refusal {
@@ -430,8 +434,8 @@
             font-size: 0.72rem;
             letter-spacing: 0.08em;
             text-transform: uppercase;
-            color: rgba(31, 26, 22, 0.55);
-            background: rgba(255, 255, 255, 0.85);
+            color: rgba(29, 31, 35, 0.6);
+            background: rgba(255, 255, 255, 0.9);
             padding: 4px 8px;
             border-radius: 999px;
             z-index: 1;
@@ -444,7 +448,7 @@
             right: 0;
             bottom: 0;
             height: 40px;
-            background: linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.95) 100%);
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.96) 100%);
             pointer-events: none;
         }
 
@@ -515,7 +519,7 @@
 
         .icon-button {
             border: 1px solid var(--stroke);
-            background: var(--panel-alt);
+            background: #fff;
             color: var(--accent-strong);
             width: 34px;
             height: 34px;
@@ -529,13 +533,13 @@
 
         .icon-button:hover {
             transform: translateY(-1px);
-            box-shadow: 0 8px 18px rgba(193, 88, 60, 0.2);
+            box-shadow: 0 8px 18px rgba(16, 163, 127, 0.2);
         }
 
         .icon-button.is-copied {
-            background: rgba(47, 138, 74, 0.15);
-            color: #1f6a36;
-            border-color: rgba(47, 138, 74, 0.3);
+            background: rgba(26, 127, 74, 0.12);
+            color: #13633b;
+            border-color: rgba(26, 127, 74, 0.3);
         }
 
         .icon-button svg {
@@ -549,6 +553,7 @@
             color: var(--code-ink);
             padding: 16px;
             border-radius: 16px;
+            border: 1px solid var(--code-border);
             overflow-x: auto;
             font-size: 0.82rem;
             line-height: 1.5;
@@ -573,8 +578,8 @@
             font-size: 0.72rem;
             letter-spacing: 0.08em;
             text-transform: uppercase;
-            color: rgba(244, 238, 231, 0.7);
-            background: rgba(31, 26, 22, 0.7);
+            color: rgba(31, 41, 51, 0.7);
+            background: rgba(255, 255, 255, 0.9);
             padding: 4px 8px;
             border-radius: 999px;
             z-index: 1;
@@ -587,7 +592,7 @@
             right: 0;
             bottom: 0;
             height: 48px;
-            background: linear-gradient(180deg, rgba(31, 26, 22, 0) 0%, rgba(31, 26, 22, 0.85) 100%);
+            background: linear-gradient(180deg, rgba(243, 245, 247, 0) 0%, rgba(243, 245, 247, 0.96) 100%);
             pointer-events: none;
         }
 
@@ -620,6 +625,13 @@
 
             .actions {
                 padding: 16px;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                animation: none !important;
+                transition: none !important;
             }
         }
     </style>
