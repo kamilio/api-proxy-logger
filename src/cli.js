@@ -123,8 +123,6 @@ Options:
   --target <url>       Base target URL for proxying (required)
   --target-port <port> Override target URL port
   --home <dir>         Base directory for config/logs
-  --config <path>      Path to config.yaml
-  --logs <dir>         Log output directory
   --force              Overwrite existing config on init
   -h, --help           Show this help message
 `);

@@ -1,7 +1,7 @@
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 
-export const DEFAULT_BASE_DIR = join(homedir(), '.llm_debugger');
+export const DEFAULT_BASE_DIR = join(homedir(), '.llm-debugger');
 
 export function expandHomePath(pathValue) {
   if (!pathValue) return pathValue;

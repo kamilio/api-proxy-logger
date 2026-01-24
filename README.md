@@ -32,11 +32,9 @@ View logged requests at `http://localhost:8000/viewer`
 
 ## Configuration
 
-Config lives at `~/.llm_debugger/config.yaml` and is created automatically on first run if missing. Override paths with environment variables:
+Config lives at `~/.llm-debugger/config.yaml` and logs at `~/.llm-debugger/logs`. Override the base directory with:
 
 - `LLM_DEBUGGER_HOME` - Base directory
-- `LOG_OUTPUT_DIR` - Logs directory
-- `CONFIG_PATH` - Config file path
 
 ## License
 
