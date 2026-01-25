@@ -40,14 +40,15 @@ export function normalizeMethodFilters(values) {
   return Array.from(new Set(items));
 }
 
-export function filterLogs(logs, { baseUrls, methods } = {}) {
+export function filterLogs(logs, { baseUrls, methods, aliasHostMap } = {}) {
   const baseUrlFilters = normalizeBaseUrlFilters(baseUrls);
+  const expandedBaseUrlFilters = expandBaseUrlFilters(baseUrlFilters, aliasHostMap);
   const methodFilters = normalizeMethodFilters(methods);
 
   return (logs || []).filter((log) => {
-    if (baseUrlFilters.length) {
+    if (expandedBaseUrlFilters.length) {
       const hostname = normalizeBaseUrlValue(log?.request?.url);
-      if (!hostname || !baseUrlFilters.includes(hostname)) {
+      if (!hostname || !expandedBaseUrlFilters.includes(hostname)) {
         return false;
       }
     }
@@ -59,4 +60,18 @@ export function filterLogs(logs, { baseUrls, methods } = {}) {
     }
     return true;
   });
+}
+
+function expandBaseUrlFilters(baseUrlFilters, aliasHostMap) {
+  const expanded = new Set(baseUrlFilters);
+  if (!aliasHostMap || typeof aliasHostMap !== 'object') {
+    return Array.from(expanded);
+  }
+  for (const value of baseUrlFilters) {
+    const aliasHost = aliasHostMap[String(value).toLowerCase()];
+    if (aliasHost) {
+      expanded.add(aliasHost);
+    }
+  }
+  return Array.from(expanded);
 }

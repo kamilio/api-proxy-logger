@@ -99,31 +99,6 @@
             font-size: 0.95rem;
         }
 
-        .header-meta {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin-top: 6px;
-        }
-
-        .meta-pill {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 4px 10px;
-            border-radius: 999px;
-            border: 1px solid var(--stroke);
-            background: #fff;
-            font-size: 0.75rem;
-            color: var(--muted);
-            font-weight: 600;
-        }
-
-        .meta-pill strong {
-            color: var(--ink);
-            font-weight: 600;
-        }
-
         .controls {
             display: grid;
             grid-template-columns: minmax(0, 1fr) auto;
@@ -143,12 +118,60 @@
             gap: 12px;
         }
 
-        .filters-header {
+        .filters-summary {
+            list-style: none;
             display: flex;
             flex-wrap: wrap;
             align-items: center;
-            justify-content: space-between;
+            justify-content: flex-start;
             gap: 10px;
+            padding: 10px 12px;
+            border-radius: 14px;
+            border: 1px solid var(--stroke);
+            background: #fff;
+            cursor: pointer;
+            transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+        }
+
+        .filters-summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .filters-summary::marker {
+            content: "";
+        }
+
+        .filters-summary::after {
+            content: "+";
+            font-size: 0.9rem;
+            color: var(--muted);
+            font-weight: 700;
+            margin-left: 8px;
+        }
+
+        .filters-block[open] .filters-summary::after {
+            content: "-";
+        }
+
+        .filters-summary:hover {
+            border-color: rgba(16, 163, 127, 0.35);
+            box-shadow: 0 8px 18px rgba(16, 163, 127, 0.16);
+            transform: translateY(-1px);
+        }
+
+        .filters-summary:focus-visible {
+            outline: 3px solid var(--focus);
+            outline-offset: 2px;
+        }
+
+        .filters-body {
+            display: grid;
+            gap: 12px;
+        }
+
+        .filters-actions {
+            display: flex;
+            justify-content: flex-end;
         }
 
         .filters-title {
@@ -162,6 +185,10 @@
         .filters-meta {
             font-size: 0.78rem;
             color: var(--muted);
+        }
+
+        .filters-summary .filters-meta {
+            margin-left: auto;
         }
 
         .filters {
@@ -711,7 +738,7 @@
                 width: 100%;
             }
 
-            .filters-header {
+            .filters-summary {
                 align-items: flex-start;
             }
 
@@ -758,62 +785,62 @@
             <% const activeFilters = baseUrls.length + methods.length; %>
             <% const visibleLogs = logs.reduce((count, log) => count + (log._hidden ? 0 : 1), 0); %>
             <% const hiddenLogs = logs.length - visibleLogs; %>
+            <% const filterSummary = activeFilters ? `${activeFilters} active` : 'none'; %>
+            <% const filterSummaryMeta = `${filterSummary} / ${visibleLogs} shown`; %>
+            <% const aliasLookup = aliasByHost || {}; %>
+            <% const hasAliases = Object.keys(aliasLookup).length > 0; %>
             <header class="hero">
                 <div class="title-block">
                     <div class="eyebrow">LLM Debugger</div>
                     <h1 class="title">Requests</h1>
-                    <div class="header-meta">
-                        <span class="meta-pill"><strong><%= visibleLogs %></strong> visible</span>
-                        <% if (hiddenLogs) { %>
-                            <span class="meta-pill"><strong><%= hiddenLogs %></strong> hidden</span>
-                        <% } %>
-                        <span class="meta-pill"><strong><%= limit %></strong> limit</span>
-                        <span class="meta-pill"><strong><%= activeFilters %></strong> filters</span>
-                    </div>
                 </div>
                 <div class="controls">
-                    <div class="filters-block">
-                        <div class="filters-header">
+                    <details class="filters-block" id="filters-block">
+                        <summary class="filters-summary">
                             <span class="filters-title">Filters</span>
-                            <span class="filters-meta">Showing <%= visibleLogs %> entries</span>
-                        </div>
-                        <div class="filters">
-                            <div class="field">
-                                <label for="limit">Show</label>
-                                <div class="field-inline">
-                                    <input type="number" id="limit" value="<%= limit %>" min="1" max="100">
-                                    <span class="muted">entries</span>
+                            <span class="filters-meta"><%= filterSummaryMeta %></span>
+                        </summary>
+                        <div class="filters-body">
+                            <div class="filters">
+                                <div class="field">
+                                    <label for="limit">Show</label>
+                                    <div class="field-inline">
+                                        <input type="number" id="limit" value="<%= limit %>" min="1" max="100">
+                                        <span class="muted">entries</span>
+                                    </div>
+                                </div>
+                                <div class="field">
+                                    <label for="baseUrl">Base URL</label>
+                                    <input type="text" id="baseUrl" placeholder="Type something e.g. api.poe.com" value="<%= baseUrls.join(',') %>">
+                                </div>
+                                <div class="field">
+                                    <label for="method">Method</label>
+                                    <input type="text" id="method" placeholder="Type something e.g. GET, POST" value="<%= methods.join(',') %>">
                                 </div>
                             </div>
-                            <div class="field">
-                                <label for="baseUrl">Base URL</label>
-                                <input type="text" id="baseUrl" placeholder="Type something e.g. api.poe.com" value="<%= baseUrls.join(',') %>">
+                            <div class="filter-chips" aria-live="polite">
+                                <% if (!activeFilters) { %>
+                                    <span class="chip chip-empty">No filters applied</span>
+                                <% } %>
+                                <% baseUrls.forEach((value) => { %>
+                                    <button class="chip" type="button" data-filter="baseUrl" data-value="<%= value %>" aria-label="Remove base URL filter <%= value %>">
+                                        Base URL: <strong><%= value %></strong>
+                                        <span class="chip-remove">remove</span>
+                                    </button>
+                                <% }) %>
+                                <% methods.forEach((value) => { %>
+                                    <button class="chip" type="button" data-filter="method" data-value="<%= value %>" aria-label="Remove method filter <%= value %>">
+                                        Method: <strong><%= value %></strong>
+                                        <span class="chip-remove">remove</span>
+                                    </button>
+                                <% }) %>
                             </div>
-                            <div class="field">
-                                <label for="method">Method</label>
-                                <input type="text" id="method" placeholder="Type something e.g. GET, POST" value="<%= methods.join(',') %>">
+                            <div class="filters-actions">
+                                <button class="btn secondary" id="clear-filters" type="button" <%= activeFilters ? '' : 'disabled' %>>Clear filters</button>
                             </div>
                         </div>
-                        <div class="filter-chips" aria-live="polite">
-                            <% if (!activeFilters) { %>
-                                <span class="chip chip-empty">No filters applied</span>
-                            <% } %>
-                            <% baseUrls.forEach((value) => { %>
-                                <button class="chip" type="button" data-filter="baseUrl" data-value="<%= value %>" aria-label="Remove base URL filter <%= value %>">
-                                    Base URL: <strong><%= value %></strong>
-                                    <span class="chip-remove">remove</span>
-                                </button>
-                            <% }) %>
-                            <% methods.forEach((value) => { %>
-                                <button class="chip" type="button" data-filter="method" data-value="<%= value %>" aria-label="Remove method filter <%= value %>">
-                                    Method: <strong><%= value %></strong>
-                                    <span class="chip-remove">remove</span>
-                                </button>
-                            <% }) %>
-                        </div>
-                    </div>
+                    </details>
                     <div class="control-actions">
-                        <button class="btn secondary" id="clear-filters" type="button" <%= activeFilters ? '' : 'disabled' %>>Clear filters</button>
                         <button class="btn secondary" id="compare-toggle" type="button">Compare</button>
                         <button class="btn" onclick="refresh()" type="button">Refresh</button>
                     </div>
@@ -867,6 +894,15 @@
                             <% const methodLabel = log.request.method || 'UNKNOWN'; %>
                             <% const methodClass = methodLabel.toLowerCase(); %>
                             <% const appName = log.request.headers['x-title'] || log.request.headers['http-referer'] || log.request.headers['X-Title'] || log.request.headers['HTTP-Referer'] || log.request.headers['referer'] || log.request.headers['Referer']; %>
+                            <% const baseUrlLabel = log._base_url; %>
+                            <% const aliasLabel = hasAliases && baseUrlLabel ? aliasLookup[baseUrlLabel] : null; %>
+                            <% const baseUrlDisplay = aliasLabel || baseUrlLabel; %>
+                            <% const baseUrlFilterValue = aliasLabel || baseUrlLabel; %>
+                            <% const providerLabel = providerName; %>
+                            <% const appLabel = appName; %>
+                            <% const normalizedBaseUrlDisplay = (baseUrlDisplay || '').toLowerCase(); %>
+                            <% const normalizedProvider = (providerLabel || '').toLowerCase(); %>
+                            <% const normalizedApp = (appLabel || '').toLowerCase(); %>
                             <article class="log-card method-<%= methodClass %>"
                                 style="animation-delay: <%= index * 45 %>ms"
                                 data-href="/__viewer__/<%= encodeURIComponent(log._viewer_provider || providerName) %>/<%= encodeURIComponent(log._viewer_file || '') %><%= backQuery %>"
@@ -896,12 +932,14 @@
                                     <span class="pill status <%= log.response.status < 400 ? 'ok' : 'bad' %>"><%= log.response.status %></span>
                                     <span class="pill"><%= log.duration_ms || 0 %>ms</span>
                                     <span class="pill"><%= new Date(log.timestamp).toLocaleTimeString() %></span>
-                                    <% if (log._base_url) { %>
-                                        <a class="pill pill-link" href="<%= buildBaseUrlLink(log._base_url) %>"><%= log._base_url %></a>
+                                    <% if (baseUrlDisplay) { %>
+                                        <a class="pill pill-link" href="<%= buildBaseUrlLink(baseUrlFilterValue) %>"><%= baseUrlDisplay %></a>
                                     <% } %>
-                                    <span class="pill"><%= providerName %></span>
-                                    <% if (appName) { %>
-                                        <span class="pill"><%= appName %></span>
+                                    <% if (providerLabel && (!baseUrlDisplay || normalizedProvider !== normalizedBaseUrlDisplay)) { %>
+                                        <span class="pill"><%= providerLabel %></span>
+                                    <% } %>
+                                    <% if (appLabel && (!baseUrlDisplay || normalizedApp !== normalizedBaseUrlDisplay) && (!providerLabel || normalizedApp !== normalizedProvider)) { %>
+                                        <span class="pill"><%= appLabel %></span>
                                     <% } %>
                                 </div>
                             </article>

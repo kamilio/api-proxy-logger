@@ -30,12 +30,13 @@ export const COMPARE_SECTIONS = [
   },
 ];
 
-export async function getViewerIndexData(outputDir, { limit, provider, baseUrls, methods }) {
+export async function getViewerIndexData(outputDir, { limit, provider, baseUrls, methods, aliasHostMap }) {
   const logs = await getRecentLogs(outputDir, {
     limit,
     provider,
     baseUrls,
     methods,
+    aliasHostMap,
   });
   const providerMeta = collectProviders(logs);
   return { logs, providerMeta };

@@ -48,4 +48,18 @@ describe('viewer filters', () => {
 
     assert.deepStrictEqual(filtered, [logs[0]]);
   });
+
+  it('filters logs by alias name when provided', () => {
+    const logs = [
+      { request: { url: 'https://api.poe.com/v1', method: 'POST' } },
+      { request: { url: 'https://openrouter.ai/v1', method: 'GET' } },
+    ];
+
+    const filtered = filterLogs(logs, {
+      baseUrls: ['poe'],
+      aliasHostMap: { poe: 'api.poe.com' },
+    });
+
+    assert.deepStrictEqual(filtered, [logs[0]]);
+  });
 });

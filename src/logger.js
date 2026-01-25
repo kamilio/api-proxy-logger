@@ -74,12 +74,14 @@ export async function getRecentLogs(outputDir, limitOrOptions = 20, provider = n
   let providerFilter = null;
   let baseUrls = null;
   let methods = null;
+  let aliasHostMap = null;
 
   if (typeof limitOrOptions === 'object' && limitOrOptions !== null) {
     limit = Number.isFinite(limitOrOptions.limit) ? limitOrOptions.limit : 20;
     providerFilter = limitOrOptions.provider || null;
     baseUrls = limitOrOptions.baseUrls || null;
     methods = limitOrOptions.methods || null;
+    aliasHostMap = limitOrOptions.aliasHostMap || null;
   } else {
     limit = limitOrOptions;
     providerFilter = provider;
@@ -138,7 +140,11 @@ export async function getRecentLogs(outputDir, limitOrOptions = 20, provider = n
       })
     );
 
-    const filteredLogs = filterLogs(logs.filter(Boolean), { baseUrls, methods });
+    const filteredLogs = filterLogs(logs.filter(Boolean), {
+      baseUrls,
+      methods,
+      aliasHostMap,
+    });
     return filteredLogs
       .sort((a, b) => {
         const aTime = Date.parse(a.timestamp || '') || 0;

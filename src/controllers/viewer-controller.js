@@ -23,12 +23,14 @@ export function createViewerController(config) {
       const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 100);
       const baseUrlFilters = normalizeBaseUrlFilters(parseCsvParam(req.query.baseUrl));
       const methodFilters = normalizeMethodFilters(parseCsvParam(req.query.method));
+      const { aliasByHost, aliasHostMap } = buildAliasMaps(config.aliases);
       const { logs } = await getViewerIndexData(
         config.outputDir,
         {
           limit,
           baseUrls: baseUrlFilters,
           methods: methodFilters,
+          aliasHostMap,
         }
       );
 
@@ -57,6 +59,7 @@ export function createViewerController(config) {
           limit,
           baseUrlFilters,
           methodFilters,
+          aliasByHost,
         }
       );
 
@@ -201,4 +204,25 @@ export function createViewerController(config) {
       }
     },
   };
+}
+
+function buildAliasMaps(aliases) {
+  const aliasByHost = {};
+  const aliasHostMap = {};
+  if (!aliases || typeof aliases !== 'object') {
+    return { aliasByHost, aliasHostMap };
+  }
+
+  for (const [aliasName, entry] of Object.entries(aliases)) {
+    if (!entry || typeof entry !== 'object') continue;
+    const hostname = normalizeBaseUrlValue(entry.url);
+    if (!hostname) continue;
+    const normalizedAlias = String(aliasName).toLowerCase();
+    aliasHostMap[normalizedAlias] = hostname;
+    if (!aliasByHost[hostname]) {
+      aliasByHost[hostname] = aliasName;
+    }
+  }
+
+  return { aliasByHost, aliasHostMap };
 }

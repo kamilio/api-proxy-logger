@@ -48,6 +48,7 @@ export async function renderViewer({
   limit,
   baseUrlFilters,
   methodFilters,
+  aliasByHost,
 }) {
   const template = await getTemplate();
   return ejs.render(template, {
@@ -55,6 +56,7 @@ export async function renderViewer({
     limit,
     baseUrlFilters,
     methodFilters,
+    aliasByHost,
   });
 }
 
