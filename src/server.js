@@ -28,6 +28,15 @@ export function createServer(config, { onListen } = {}) {
       return;
     }
 
+    // If no target configured and not an alias request, return 404
+    if (!config.targetUrl && !aliasInfo) {
+      res.status(404).json({
+        error: 'No target configured',
+        message: 'Use /__proxy__/<alias> or configure --target',
+      });
+      return;
+    }
+
     let proxyPathname = proxyUrl.pathname;
     let targetBaseUrl = config.targetUrl;
     let targetPath = proxyPath;

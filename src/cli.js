@@ -54,10 +54,13 @@ async function main() {
     })
     .filter(Boolean);
 
-  const endpointSummary = [
-    `Proxy:  http://${proxyHost}:${portNumber}/ to ${resolvedTargetUrl}`,
-    ...aliasLines,
-  ].join('\n');
+  const endpointLines = [];
+  if (resolvedTargetUrl) {
+    endpointLines.push(`Proxy:  http://${proxyHost}:${portNumber}/ -> ${resolvedTargetUrl}`);
+  }
+  endpointLines.push(...aliasLines);
+
+  const endpointSummary = endpointLines.join('\n');
 
   const startSpinner = spinner();
   startSpinner.start('Starting server');
@@ -84,7 +87,7 @@ Options:
   --proxy-host <host>  Proxy host (default: localhost)
   --port <port>        Proxy port or range (default: 8000-8010)
   --proxy-port <port>  Proxy port (alias of --port)
-  --target <url>       Base target URL for proxying (required)
+  --target <url>       Base target URL for proxying (optional if aliases configured)
   --target-port <port> Override target URL port
   --home <dir>         Base directory for config/logs
   --force              Overwrite existing config on init

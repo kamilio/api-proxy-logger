@@ -12,28 +12,38 @@ export async function buildServerConfig() {
   const portNumber = await findAvailablePort(proxyHost, portSpec);
 
   const targetUrl = process.env.TARGET_URL;
-  if (!targetUrl) {
-    throw new Error('TARGET_URL is required. Use --target <url>.');
+  const hasAliases = fileConfig.aliases && Object.keys(fileConfig.aliases).length > 0;
+
+  // Target is optional if aliases are configured
+  if (!targetUrl && !hasAliases) {
+    throw new Error(
+      'Provide --target or configure aliases via:\n' +
+      '  llm-debugger config add-alias <alias> <url>'
+    );
   }
 
-  let resolvedTargetUrl = targetUrl;
-  let parsedTarget;
-  try {
-    parsedTarget = new URL(targetUrl);
-  } catch {
-    throw new Error('TARGET_URL must be a valid URL (e.g. https://api.openai.com)');
-  }
+  let resolvedTargetUrl = null;
+  let providerLabel = 'aliases-only';
 
-  if (process.env.TARGET_PORT) {
-    const targetPort = parseInt(process.env.TARGET_PORT, 10);
-    if (!Number.isFinite(targetPort) || targetPort <= 0 || targetPort > 65535) {
-      throw new Error('TARGET_PORT must be a valid TCP port (1-65535)');
+  if (targetUrl) {
+    let parsedTarget;
+    try {
+      parsedTarget = new URL(targetUrl);
+    } catch {
+      throw new Error('TARGET_URL must be a valid URL (e.g. https://api.openai.com)');
     }
-    parsedTarget.port = String(targetPort);
-    resolvedTargetUrl = parsedTarget.toString();
-  }
 
-  const providerLabel = parsedTarget.hostname || parsedTarget.host || 'unknown';
+    if (process.env.TARGET_PORT) {
+      const targetPort = parseInt(process.env.TARGET_PORT, 10);
+      if (!Number.isFinite(targetPort) || targetPort <= 0 || targetPort > 65535) {
+        throw new Error('TARGET_PORT must be a valid TCP port (1-65535)');
+      }
+      parsedTarget.port = String(targetPort);
+    }
+
+    resolvedTargetUrl = parsedTarget.toString();
+    providerLabel = parsedTarget.hostname || parsedTarget.host || 'unknown';
+  }
 
   const config = {
     host: proxyHost,
