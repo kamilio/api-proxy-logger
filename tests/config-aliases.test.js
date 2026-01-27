@@ -4,7 +4,7 @@ import { mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import yaml from 'js-yaml';
-import { addAliasToConfig, removeAliasFromConfig } from '../src/config-aliases.js';
+import { addAliasToConfig, removeAliasFromConfig, setDefaultAliasInConfig } from '../src/config-aliases.js';
 
 describe('addAliasToConfig', () => {
   let testDir;
@@ -72,6 +72,41 @@ describe('addAliasToConfig', () => {
 
     assert.throws(
       () => removeAliasFromConfig('missing', configPath),
+      /not found/
+    );
+  });
+});
+
+describe('setDefaultAliasInConfig', () => {
+  let testDir;
+
+  afterEach(() => {
+    if (testDir) {
+      rmSync(testDir, { recursive: true, force: true });
+    }
+  });
+
+  it('sets the default alias when it exists', () => {
+    testDir = join(tmpdir(), `llm-debugger-default-alias-${Date.now()}`);
+    mkdirSync(testDir, { recursive: true });
+    const configPath = join(testDir, 'config.yaml');
+
+    addAliasToConfig('poe', 'https://api.poe.com', configPath);
+    const result = setDefaultAliasInConfig('poe', configPath);
+    const content = readFileSync(configPath, 'utf-8');
+    const parsed = yaml.load(content);
+
+    assert.strictEqual(result.alias, 'poe');
+    assert.strictEqual(parsed.default_alias, 'poe');
+  });
+
+  it('rejects setting a missing alias as default', () => {
+    testDir = join(tmpdir(), `llm-debugger-default-alias-${Date.now()}`);
+    mkdirSync(testDir, { recursive: true });
+    const configPath = join(testDir, 'config.yaml');
+
+    assert.throws(
+      () => setDefaultAliasInConfig('missing', configPath),
       /not found/
     );
   });

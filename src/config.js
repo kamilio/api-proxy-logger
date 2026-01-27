@@ -10,6 +10,7 @@ export const DEFAULT_CONFIG = {
   env: {},
   ignore_routes: [],
   hide_from_viewer: [],
+  default_alias: null,
   aliases: {},
 };
 

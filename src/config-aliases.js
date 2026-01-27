@@ -3,6 +3,7 @@ import { dirname } from 'node:path';
 import yaml from 'js-yaml';
 import { DEFAULT_CONFIG } from './config.js';
 import { getConfigEditPath } from './config-file.js';
+import { resolveAliasConfig } from './aliases.js';
 
 const ALIAS_NAME_PATTERN = /^[a-zA-Z0-9._-]+$/;
 
@@ -84,6 +85,22 @@ export function removeAliasFromConfig(aliasName, configPath = getConfigEditPath(
   delete updatedAliases[aliasName];
   config.aliases = updatedAliases;
 
+  writeConfigFile(configPath, config);
+  return { configPath, alias: aliasName };
+}
+
+export function setDefaultAliasInConfig(aliasName, configPath = getConfigEditPath()) {
+  if (!ALIAS_NAME_PATTERN.test(aliasName || '')) {
+    throw new Error('Alias must be a safe path segment (letters, numbers, ".", "_", "-").');
+  }
+
+  const config = readConfigFile(configPath);
+  const resolved = resolveAliasConfig(config.aliases, aliasName);
+  if (!resolved) {
+    throw new Error(`Alias "${aliasName}" not found.`);
+  }
+
+  config.default_alias = aliasName;
   writeConfigFile(configPath, config);
   return { configPath, alias: aliasName };
 }

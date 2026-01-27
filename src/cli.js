@@ -11,7 +11,7 @@ import { getConfigPath, getHomeConfigPath } from './paths.js';
 import { getConfigDisplayContent, getConfigEditPath } from './config-file.js';
 import { getEditorCandidates } from './editor.js';
 import { resolveAliasConfig } from './aliases.js';
-import { addAliasToConfig, removeAliasFromConfig } from './config-aliases.js';
+import { addAliasToConfig, removeAliasFromConfig, setDefaultAliasInConfig } from './config-aliases.js';
 import { buildServerConfig } from './server-config.js';
 
 async function main() {
@@ -82,12 +82,13 @@ Usage:
   llm-debugger config edit
   llm-debugger config add-alias <alias> <url>
   llm-debugger config remove-alias <alias>
+  llm-debugger config set-default-alias <alias>
 
 Options:
   --proxy-host <host>  Proxy host (default: localhost)
   --port <port>        Proxy port or range (default: 8000-8010)
   --proxy-port <port>  Proxy port (alias of --port)
-  --target <url>       Base target URL for proxying (optional if aliases configured)
+  --target <url|alias> Base target URL or alias name for proxying
   --target-port <port> Override target URL port
   --home <dir>         Base directory for config/logs
   --force              Overwrite existing config on init
@@ -198,6 +199,11 @@ function runConfigCommand(subcommand, args) {
     return;
   }
 
+  if (subcommand === 'set-default-alias') {
+    runConfigSetDefaultAlias(args);
+    return;
+  }
+
   log.error(`Unknown config command: ${subcommand}`);
   process.exitCode = 1;
 }
@@ -243,6 +249,19 @@ function runConfigRemoveAlias(args) {
 
   const result = removeAliasFromConfig(aliasName);
   log.success(`Removed alias ${result.alias}`);
+  log.info(`Config: ${result.configPath}`);
+}
+
+function runConfigSetDefaultAlias(args) {
+  const [aliasName] = args;
+  if (!aliasName) {
+    log.error('Usage: llm-debugger config set-default-alias <alias>');
+    process.exitCode = 1;
+    return;
+  }
+
+  const result = setDefaultAliasInConfig(aliasName);
+  log.success(`Set default alias to ${result.alias}`);
   log.info(`Config: ${result.configPath}`);
 }
 

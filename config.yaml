@@ -16,6 +16,9 @@ hide_from_viewer:
   - /v1/models
   - /cdn-cgi/**
 
+# Default alias for root proxy requests (optional)
+default_alias: null
+
 # Proxy aliases: alias: { url: "https://...", headers: { Header: "value" } }
 # Use /__proxy__/<alias> to route to an alias target.
 aliases: {}

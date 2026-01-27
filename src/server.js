@@ -40,7 +40,7 @@ export function createServer(config, { onListen } = {}) {
     let proxyPathname = proxyUrl.pathname;
     let targetBaseUrl = config.targetUrl;
     let targetPath = proxyPath;
-    let proxyHeaders = null;
+    let proxyHeaders = config.proxyHeaders || null;
     let providerLabel = config.provider;
 
     if (aliasInfo) {
