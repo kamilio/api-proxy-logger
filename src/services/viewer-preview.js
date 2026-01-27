@@ -40,7 +40,7 @@ const FALLBACK_SHAPE = {
 export function buildPreviewModel(log) {
   const errors = [];
   const urlInfo = parseUrlInfo(log?.request?.url);
-  const shape = SHAPES.find((candidate) => candidate.match(urlInfo)) || FALLBACK_SHAPE;
+  const shape = resolveShape(urlInfo);
 
   let normalized;
   try {
@@ -65,6 +65,20 @@ export function buildPreviewModel(log) {
   };
 }
 
+export function getRequestMessageCount(log) {
+  const urlInfo = parseUrlInfo(log?.request?.url);
+  const shape = resolveShape(urlInfo);
+  if (shape.id === 'other') return null;
+
+  try {
+    const requestMessages = normalizeRequestMessages(shape.id, log);
+    if (!Array.isArray(requestMessages)) return null;
+    return requestMessages.length;
+  } catch {
+    return null;
+  }
+}
+
 function parseUrlInfo(rawUrl) {
   if (!rawUrl || typeof rawUrl !== 'string') {
     return { raw: '', pathname: '', hostname: '' };
@@ -80,6 +94,10 @@ function parseUrlInfo(rawUrl) {
   } catch {
     return { raw: rawUrl, pathname: String(rawUrl).toLowerCase(), hostname: '' };
   }
+}
+
+function resolveShape(urlInfo) {
+  return SHAPES.find((candidate) => candidate.match(urlInfo)) || FALLBACK_SHAPE;
 }
 
 function normalizeCompletions(log, urlInfo, errors) {
@@ -315,6 +333,85 @@ function normalizeOther(log) {
     },
     spec: emptySpec(),
   };
+}
+
+function normalizeRequestMessages(shapeId, log) {
+  const requestBody = asObject(log?.request?.body);
+
+  if (shapeId === 'completions') {
+    return normalizeCompletionsRequestMessages(requestBody);
+  }
+  if (shapeId === 'responses') {
+    return normalizeResponsesInput(requestBody);
+  }
+  if (shapeId === 'anthropic') {
+    return normalizeAnthropicRequestMessages(requestBody);
+  }
+  if (shapeId === 'gemini') {
+    return normalizeGeminiRequestMessages(requestBody);
+  }
+
+  return null;
+}
+
+function normalizeCompletionsRequestMessages(requestBody) {
+  const requestMessages = normalizeOpenAIChatMessages(requestBody.messages);
+  if (requestMessages.length === 0 && typeof requestBody.prompt === 'string') {
+    requestMessages.push({
+      role: 'user',
+      name: null,
+      parts: [{ type: 'text', text: requestBody.prompt }],
+      metadata: {},
+    });
+  } else if (requestMessages.length === 0 && Array.isArray(requestBody.prompt)) {
+    for (const prompt of requestBody.prompt) {
+      if (typeof prompt === 'string') {
+        requestMessages.push({
+          role: 'user',
+          name: null,
+          parts: [{ type: 'text', text: prompt }],
+          metadata: {},
+        });
+      }
+    }
+  }
+  return requestMessages;
+}
+
+function normalizeAnthropicRequestMessages(requestBody) {
+  const requestMessages = [];
+  if (typeof requestBody.system === 'string') {
+    requestMessages.push({
+      role: 'system',
+      name: null,
+      parts: [{ type: 'text', text: requestBody.system }],
+      metadata: {},
+    });
+  } else if (Array.isArray(requestBody.system)) {
+    requestMessages.push({
+      role: 'system',
+      name: null,
+      parts: normalizeAnthropicContent(requestBody.system),
+      metadata: {},
+    });
+  }
+  requestMessages.push(...normalizeAnthropicMessages(requestBody.messages));
+  return requestMessages;
+}
+
+function normalizeGeminiRequestMessages(requestBody) {
+  const requestMessages = [];
+  if (requestBody.systemInstruction) {
+    const parts = normalizeGeminiParts(requestBody.systemInstruction.parts || requestBody.systemInstruction);
+    requestMessages.push({
+      role: 'system',
+      name: null,
+      parts,
+      metadata: {},
+    });
+  }
+  requestMessages.push(...normalizeGeminiMessages(requestBody.contents));
+  return requestMessages;
 }
 
 function normalizeOpenAIChatMessages(messages) {

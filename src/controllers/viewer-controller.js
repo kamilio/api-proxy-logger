@@ -9,7 +9,7 @@ import {
   loadViewerLog,
   parseCompareLogSelection,
 } from '../services/viewer-service.js';
-import { buildPreviewModel } from '../services/viewer-preview.js';
+import { buildPreviewModel, getRequestMessageCount } from '../services/viewer-preview.js';
 import {
   normalizeBaseUrlFilters,
   normalizeBaseUrlValue,
@@ -44,6 +44,7 @@ export function createViewerController(config) {
           (providerKey && aliasNameMap[providerKey]) ||
           (baseUrl ? aliasByHost[baseUrl] : null) ||
           null;
+        const messageCount = getRequestMessageCount(log);
         try {
           const url = new URL(log.request.url);
           const hidden = shouldHideFromViewer(url.pathname);
@@ -53,6 +54,7 @@ export function createViewerController(config) {
             _path: url.pathname,
             _base_url: baseUrl,
             _alias: aliasLabel,
+            _message_count: messageCount,
           };
         } catch {
           return {
@@ -60,6 +62,7 @@ export function createViewerController(config) {
             _hidden: false,
             _base_url: baseUrl,
             _alias: aliasLabel,
+            _message_count: messageCount,
           };
         }
       });

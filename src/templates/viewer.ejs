@@ -917,6 +917,7 @@
                             <% const baseUrlFilterValue = baseUrlLabel; %>
                             <% const providerLabel = providerName; %>
                             <% const appLabel = appName; %>
+                            <% const messageCount = Number.isFinite(log._message_count) ? log._message_count : null; %>
                             <% const normalizedBaseUrlDisplay = (baseUrlDisplay || '').toLowerCase(); %>
                             <% const normalizedAlias = (aliasLabel || '').toLowerCase(); %>
                             <% const normalizedProvider = (providerLabel || '').toLowerCase(); %>
@@ -950,6 +951,7 @@
                                     <span class="pill status <%= log.response.status < 400 ? 'ok' : 'bad' %>"><%= log.response.status %></span>
                                     <span class="pill"><%= log.duration_ms || 0 %>ms</span>
                                     <span class="pill"><%= new Date(log.timestamp).toLocaleTimeString() %></span>
+                                    <span class="pill"><%= messageCount !== null ? `Messages: ${messageCount}` : 'Messages: n/a' %></span>
                                     <% if (baseUrlDisplay) { %>
                                         <a class="pill pill-link" href="<%= buildBaseUrlLink(baseUrlFilterValue) %>"><%= baseUrlDisplay %></a>
                                     <% } %>
