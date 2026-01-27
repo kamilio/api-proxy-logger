@@ -44,6 +44,13 @@ llm-debugger config add-alias poe https://api.poe.com
 
 # Start without --target (aliases only)
 llm-debugger
+
+# Start with an alias as the default target
+llm-debugger --target openai
+
+# Persist a default alias for root requests
+llm-debugger config set-default-alias openai
+llm-debugger
 ```
 
 Then use the alias path:
@@ -75,6 +82,7 @@ llm-debugger config show              # Display current config
 llm-debugger config edit              # Open config in editor
 llm-debugger config add-alias <name> <url>    # Add an alias
 llm-debugger config remove-alias <name>       # Remove an alias
+llm-debugger config set-default-alias <name>  # Set default alias for root requests
 ```
 
 ## License
