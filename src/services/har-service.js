@@ -82,6 +82,7 @@ function buildHarRequest(req) {
   const headers = objectToNameValuePairs(sanitizedHeaders);
   const queryString = extractQueryString(sanitizedUrl);
   const postData = buildPostData(sanitizedBody, sanitizedHeaders);
+  const cookies = parseCookiesFromHeaders(sanitizedHeaders);
 
   return {
     method: req.method || 'GET',
@@ -89,7 +90,7 @@ function buildHarRequest(req) {
     httpVersion: 'HTTP/1.1',
     headers,
     queryString,
-    cookies: [],
+    cookies,
     headersSize: -1,
     bodySize: postData ? postData.text.length : -1,
     ...(postData && { postData }),
@@ -120,15 +121,17 @@ function buildHarResponse(res) {
 
   const headers = objectToNameValuePairs(sanitizedHeaders);
   const content = buildContent(sanitizedBody, sanitizedHeaders);
+  const cookies = parseSetCookiesFromHeaders(sanitizedHeaders);
+  const redirectURL = extractRedirectURL(sanitizedHeaders);
 
   return {
     status: res.status || 0,
     statusText: getStatusText(res.status),
     httpVersion: 'HTTP/1.1',
     headers,
-    cookies: [],
+    cookies,
     content,
-    redirectURL: '',
+    redirectURL,
     headersSize: -1,
     bodySize: content.size,
   };
@@ -222,4 +225,85 @@ function getStatusText(status) {
     503: 'Service Unavailable',
   };
   return statusTexts[status] || '';
+}
+
+function parseCookiesFromHeaders(headers) {
+  if (!headers || typeof headers !== 'object') {
+    return [];
+  }
+  for (const [key, value] of Object.entries(headers)) {
+    if (key.toLowerCase() === 'cookie') {
+      return parseCookieHeader(String(value));
+    }
+  }
+  return [];
+}
+
+function parseCookieHeader(cookieStr) {
+  if (!cookieStr) return [];
+  return cookieStr.split(';').map((pair) => {
+    const [name, ...rest] = pair.trim().split('=');
+    return {
+      name: name || '',
+      value: rest.join('=') || '',
+    };
+  }).filter((c) => c.name);
+}
+
+function parseSetCookiesFromHeaders(headers) {
+  if (!headers || typeof headers !== 'object') {
+    return [];
+  }
+  const cookies = [];
+  for (const [key, value] of Object.entries(headers)) {
+    if (key.toLowerCase() === 'set-cookie') {
+      const values = Array.isArray(value) ? value : [value];
+      for (const v of values) {
+        const cookie = parseSetCookieValue(String(v));
+        if (cookie) cookies.push(cookie);
+      }
+    }
+  }
+  return cookies;
+}
+
+function parseSetCookieValue(setCookieStr) {
+  if (!setCookieStr) return null;
+  const parts = setCookieStr.split(';').map((p) => p.trim());
+  if (parts.length === 0) return null;
+
+  const [nameValue, ...attributes] = parts;
+  const [name, ...rest] = nameValue.split('=');
+  if (!name) return null;
+
+  const cookie = {
+    name,
+    value: rest.join('=') || '',
+  };
+
+  for (const attr of attributes) {
+    const [attrName, ...attrRest] = attr.split('=');
+    const attrLower = (attrName || '').toLowerCase();
+    const attrValue = attrRest.join('=');
+
+    if (attrLower === 'path') cookie.path = attrValue;
+    else if (attrLower === 'domain') cookie.domain = attrValue;
+    else if (attrLower === 'expires') cookie.expires = attrValue;
+    else if (attrLower === 'httponly') cookie.httpOnly = true;
+    else if (attrLower === 'secure') cookie.secure = true;
+  }
+
+  return cookie;
+}
+
+function extractRedirectURL(headers) {
+  if (!headers || typeof headers !== 'object') {
+    return '';
+  }
+  for (const [key, value] of Object.entries(headers)) {
+    if (key.toLowerCase() === 'location') {
+      return String(value);
+    }
+  }
+  return '';
 }
