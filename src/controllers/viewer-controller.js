@@ -17,6 +17,8 @@ import {
   normalizeMethodFilters,
   parseCsvParam,
 } from '../viewer-filters.js';
+import { logToHar } from '../services/har-service.js';
+import { logToPython } from '../services/python-service.js';
 
 export function createViewerController(config) {
   return {
@@ -227,6 +229,74 @@ export function createViewerController(config) {
       } catch (error) {
         console.error('Viewer delete error:', error.message);
         res.status(500).json({ error: 'Viewer delete error', message: error.message });
+      }
+    },
+
+    downloadHar: async (req, res) => {
+      try {
+        const { provider, filename } = req.params;
+        const log = await loadViewerLog(config.outputDir, provider, filename);
+        if (!log) {
+          res.status(404).type('text').send('Not found');
+          return;
+        }
+
+        const allowHidden = req.query.reveal === '1';
+        if (log?.request?.url) {
+          try {
+            const url = new URL(log.request.url);
+            if (!allowHidden && shouldHideFromViewer(url.pathname)) {
+              res.status(404).type('text').send('Not found');
+              return;
+            }
+          } catch {
+            // Ignore malformed URLs for hide checks.
+          }
+        }
+
+        const har = logToHar(log);
+        const harFilename = filename.replace(/\.yaml$/, '.har');
+
+        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Content-Disposition', `attachment; filename="${harFilename}"`);
+        res.send(JSON.stringify(har, null, 2));
+      } catch (error) {
+        console.error('Viewer download HAR error:', error.message);
+        res.status(500).json({ error: 'Download HAR error', message: error.message });
+      }
+    },
+
+    downloadPython: async (req, res) => {
+      try {
+        const { provider, filename } = req.params;
+        const log = await loadViewerLog(config.outputDir, provider, filename);
+        if (!log) {
+          res.status(404).type('text').send('Not found');
+          return;
+        }
+
+        const allowHidden = req.query.reveal === '1';
+        if (log?.request?.url) {
+          try {
+            const url = new URL(log.request.url);
+            if (!allowHidden && shouldHideFromViewer(url.pathname)) {
+              res.status(404).type('text').send('Not found');
+              return;
+            }
+          } catch {
+            // Ignore malformed URLs for hide checks.
+          }
+        }
+
+        const python = logToPython(log);
+        const pyFilename = filename.replace(/\.yaml$/, '.py');
+
+        res.setHeader('Content-Type', 'text/x-python');
+        res.setHeader('Content-Disposition', `attachment; filename="${pyFilename}"`);
+        res.send(python);
+      } catch (error) {
+        console.error('Viewer download Python error:', error.message);
+        res.status(500).json({ error: 'Download Python error', message: error.message });
       }
     },
   };

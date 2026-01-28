@@ -235,6 +235,71 @@
             transform: none;
         }
 
+        .btn-group {
+            position: relative;
+            display: inline-flex;
+        }
+
+        .btn-group .btn {
+            border-radius: 14px 0 0 14px;
+        }
+
+        .btn-group .btn-dropdown {
+            border-radius: 0 14px 14px 0;
+            padding: 10px 8px;
+            border-left: 1px solid var(--stroke);
+            min-width: 32px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-group .btn-dropdown::after {
+            content: "";
+            border: 4px solid transparent;
+            border-top-color: currentColor;
+            margin-top: 4px;
+        }
+
+        .btn-group-menu {
+            position: absolute;
+            top: calc(100% + 6px);
+            left: 0;
+            min-width: 160px;
+            padding: 6px;
+            border-radius: 14px;
+            border: 1px solid var(--stroke);
+            background: #fff;
+            box-shadow: var(--shadow-soft);
+            display: none;
+            z-index: 10;
+        }
+
+        .btn-group.is-open .btn-group-menu {
+            display: grid;
+            gap: 4px;
+        }
+
+        .btn-group-item {
+            display: block;
+            width: 100%;
+            border: none;
+            background: transparent;
+            text-align: left;
+            padding: 8px 10px;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--ink);
+            cursor: pointer;
+            font-family: inherit;
+            text-decoration: none;
+        }
+
+        .btn-group-item:hover {
+            background: var(--panel-alt);
+        }
+
         .grid {
             display: grid;
             gap: 20px;
@@ -796,7 +861,20 @@
             </section>
 
             <section class="actions">
-                <button class="btn secondary" onclick="copyPython(this)">Copy Python</button>
+                <div class="btn-group">
+                    <a class="btn secondary" href="/__viewer__/<%= encodeURIComponent(log._viewer_provider) %>/<%= encodeURIComponent(log._viewer_file) %>/python" download>Download Python</a>
+                    <button class="btn secondary btn-dropdown" type="button" aria-haspopup="true" aria-expanded="false"></button>
+                    <div class="btn-group-menu" role="menu">
+                        <button class="btn-group-item" type="button" role="menuitem" onclick="copyPython(this)">Copy to clipboard</button>
+                    </div>
+                </div>
+                <div class="btn-group">
+                    <a class="btn secondary" href="/__viewer__/<%= encodeURIComponent(log._viewer_provider) %>/<%= encodeURIComponent(log._viewer_file) %>/har" download>Download HAR</a>
+                    <button class="btn secondary btn-dropdown" type="button" aria-haspopup="true" aria-expanded="false"></button>
+                    <div class="btn-group-menu" role="menu">
+                        <button class="btn-group-item" type="button" role="menuitem" onclick="copyHar(this)">Copy to clipboard</button>
+                    </div>
+                </div>
                 <button class="btn danger" id="delete-btn" onclick="deleteEntry(this)">Delete</button>
             </section>
 
@@ -1180,12 +1258,14 @@
                 } else {
                     const originalText = btn.textContent;
                     btn.textContent = 'Copied!';
-                    btn.style.background = 'rgba(47, 138, 74, 0.15)';
-                    btn.style.color = '#1f6a36';
+                    btn.style.background = 'var(--success, #1a7f4a)';
+                    btn.style.color = '#fff';
+                    btn.style.borderColor = 'var(--success, #1a7f4a)';
                     setTimeout(() => {
                         btn.textContent = originalText;
                         btn.style.background = '';
                         btn.style.color = '';
+                        btn.style.borderColor = '';
                     }, 2000);
                 }
             });
@@ -1246,7 +1326,69 @@
             ].filter((line) => line !== null);
 
             const code = lines.join('\n');
-            copyToClipboard(code, btn);
+            const mainBtn = btn.closest('.btn-group')?.querySelector('.btn') || btn;
+            copyToClipboard(code, mainBtn);
+        }
+
+        function copyHar(btn) {
+            const log = window.LOG_ENTRY || {};
+            const har = logToHarFormat(log);
+            const mainBtn = btn.closest('.btn-group')?.querySelector('.btn') || btn;
+            copyToClipboard(JSON.stringify(har, null, 2), mainBtn);
+        }
+
+        function logToHarFormat(log) {
+            const request = log?.request || {};
+            const response = log?.response || {};
+            const headers = (obj) => Object.entries(obj || {}).map(([name, value]) => ({ name, value: String(value) }));
+            const queryString = (() => {
+                try {
+                    const url = new URL(request.url || '', 'http://placeholder');
+                    return Array.from(url.searchParams.entries()).map(([name, value]) => ({ name, value }));
+                } catch { return []; }
+            })();
+            const contentType = (hdrs) => {
+                for (const [k, v] of Object.entries(hdrs || {})) {
+                    if (k.toLowerCase() === 'content-type') return String(v).split(';')[0].trim();
+                }
+                return 'application/json';
+            };
+            const bodyText = (body) => body == null ? '' : (typeof body === 'string' ? body : JSON.stringify(body));
+            const statusTexts = { 200: 'OK', 201: 'Created', 204: 'No Content', 400: 'Bad Request', 401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found', 500: 'Internal Server Error' };
+            return {
+                log: {
+                    version: '1.2',
+                    creator: { name: 'llm-debugger', version: '1.0.0' },
+                    entries: [{
+                        startedDateTime: log.timestamp || new Date().toISOString(),
+                        time: log.duration_ms || 0,
+                        request: {
+                            method: request.method || 'GET',
+                            url: request.url || '',
+                            httpVersion: 'HTTP/1.1',
+                            headers: headers(request.headers),
+                            queryString,
+                            cookies: [],
+                            headersSize: -1,
+                            bodySize: -1,
+                            ...(request.body != null && { postData: { mimeType: contentType(request.headers), text: bodyText(request.body) } }),
+                        },
+                        response: {
+                            status: response.status || 0,
+                            statusText: statusTexts[response.status] || '',
+                            httpVersion: 'HTTP/1.1',
+                            headers: headers(response.headers),
+                            cookies: [],
+                            content: { size: bodyText(response.body).length, mimeType: contentType(response.headers), text: bodyText(response.body) },
+                            redirectURL: '',
+                            headersSize: -1,
+                            bodySize: bodyText(response.body).length,
+                        },
+                        cache: {},
+                        timings: { send: -1, wait: log.duration_ms || 0, receive: -1 },
+                    }],
+                },
+            };
         }
 
         function copyResponseHeaders(btn) {
@@ -1301,7 +1443,43 @@
         document.addEventListener('DOMContentLoaded', () => {
             renderLog();
             setupTabs();
+            setupDropdowns();
         });
+
+        function setupDropdowns() {
+            const groups = document.querySelectorAll('.btn-group');
+            const closeAll = (except) => {
+                groups.forEach((g) => {
+                    if (g !== except) {
+                        g.classList.remove('is-open');
+                        const trigger = g.querySelector('.btn-dropdown');
+                        if (trigger) trigger.setAttribute('aria-expanded', 'false');
+                    }
+                });
+            };
+            groups.forEach((group) => {
+                const trigger = group.querySelector('.btn-dropdown');
+                if (!trigger) return;
+                trigger.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const isOpen = group.classList.contains('is-open');
+                    closeAll(group);
+                    group.classList.toggle('is-open', !isOpen);
+                    trigger.setAttribute('aria-expanded', String(!isOpen));
+                });
+                const menu = group.querySelector('.btn-group-menu');
+                if (menu) {
+                    menu.addEventListener('click', () => {
+                        group.classList.remove('is-open');
+                        trigger.setAttribute('aria-expanded', 'false');
+                    });
+                }
+            });
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('.btn-group')) closeAll();
+            });
+        }
+
         document.addEventListener('click', (event) => {
             const block = event.target.closest('.code-block, .preview-block');
             if (!block) return;
