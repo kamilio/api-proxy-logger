@@ -3,6 +3,7 @@ import { createProxyHandler, createStreamingProxyHandler } from './proxy.js';
 import { parseAliasPath, resolveAliasConfig } from './aliases.js';
 import { loadConfig, shouldIgnoreRoute } from './config.js';
 import { createViewerRouter } from './routes/viewer.js';
+import { sendJsonError } from './response.js';
 
 export function createServer(config, { onListen } = {}) {
   const app = express();
@@ -86,7 +87,10 @@ export function createServer(config, { onListen } = {}) {
       }
     } catch (error) {
       console.error('Proxy error:', error.message);
-      res.status(502).json({ error: 'Proxy error', message: error.message });
+      const sent = sendJsonError(res, 502, { error: 'Proxy error', message: error.message });
+      if (!sent && !res.writableEnded) {
+        res.end();
+      }
     }
   };
 
