@@ -13,6 +13,7 @@ export const DEFAULT_CONFIG = {
   hide_from_viewer: [],
   default_alias: null,
   aliases: {},
+  max_logs: 100,
 };
 
 let configCache = null;

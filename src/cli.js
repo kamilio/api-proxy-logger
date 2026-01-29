@@ -275,7 +275,7 @@ function runConfigSet(args) {
   const [key, value] = args;
   if (!key || value === undefined) {
     log.error('Usage: llm-debugger config set <key> <value>');
-    log.info('Available keys: enabled');
+    log.info('Available keys: enabled, max_logs');
     process.exitCode = 1;
     return;
   }

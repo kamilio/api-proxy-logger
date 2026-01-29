@@ -225,6 +225,24 @@
             box-shadow: 0 0 0 3px var(--focus);
         }
 
+        .number-input {
+            padding: 10px 14px;
+            border-radius: 10px;
+            border: 1px solid var(--stroke);
+            background: #fff;
+            font-size: 0.95rem;
+            font-family: inherit;
+            color: var(--ink);
+            width: 100px;
+            text-align: right;
+        }
+
+        .number-input:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--focus);
+        }
+
         .alias-list {
             display: grid;
             gap: 12px;
@@ -398,6 +416,13 @@
                             <span class="toggle-track"></span>
                         </label>
                     </div>
+                    <div class="setting-row">
+                        <div>
+                            <div class="setting-label">Max Logs</div>
+                            <div class="setting-description">Maximum number of logs to keep. Oldest logs are deleted when limit is exceeded. Set to 0 for unlimited.</div>
+                        </div>
+                        <input type="number" id="max-logs-input" value="<%= config.max_logs || 100 %>" min="0" step="1" class="number-input">
+                    </div>
                 </section>
 
                 <section class="section">
@@ -527,6 +552,23 @@
                     await updateSetting('enabled', enabledToggle.checked);
                 } catch {
                     enabledToggle.checked = !enabledToggle.checked;
+                }
+            });
+        }
+
+        // Max logs input
+        const maxLogsInput = document.getElementById('max-logs-input');
+        if (maxLogsInput) {
+            maxLogsInput.addEventListener('change', async () => {
+                const value = parseInt(maxLogsInput.value, 10);
+                if (isNaN(value) || value < 0) {
+                    maxLogsInput.value = 100;
+                    return;
+                }
+                try {
+                    await updateSetting('max_logs', value);
+                } catch {
+                    // Error shown via toast
                 }
             });
         }
