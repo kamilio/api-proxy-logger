@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - LLM Debugger</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Sora:wght@500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            color-scheme: light;
+            --bg: #f7f8fa;
+            --bg-strong: #eef1f4;
+            --panel: #ffffff;
+            --panel-alt: #f6f8fa;
+            --ink: #1d1f23;
+            --muted: #5d6670;
+            --accent: #10a37f;
+            --accent-strong: #0f8a6b;
+            --stroke: #e2e6ea;
+            --success: #1a7f4a;
+            --danger: #b3261e;
+            --shadow: 0 20px 50px rgba(15, 23, 42, 0.08);
+            --shadow-soft: 0 10px 26px rgba(15, 23, 42, 0.08);
+            --focus: rgba(16, 163, 127, 0.22);
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            font-family: "IBM Plex Sans", "Helvetica Neue", sans-serif;
+            background:
+                radial-gradient(1200px 520px at 12% -10%, rgba(16, 163, 127, 0.12), transparent 60%),
+                radial-gradient(1000px 500px at 95% -20%, rgba(15, 23, 42, 0.08), transparent 60%),
+                linear-gradient(180deg, var(--bg) 0%, #f1f3f6 100%);
+            color: var(--ink);
+        }
+
+        .page {
+            min-height: 100vh;
+            padding: 24px 18px 64px;
+        }
+
+        .shell {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .hero {
+            display: grid;
+            gap: 16px;
+            padding: 20px 22px;
+            background: rgba(255, 255, 255, 0.92);
+            border-radius: 20px;
+            border: 1px solid var(--stroke);
+            box-shadow: var(--shadow-soft);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(120deg, rgba(16, 163, 127, 0.08), transparent 70%);
+            pointer-events: none;
+        }
+
+        .title-block {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            border: 1px solid var(--stroke);
+            background: #fff;
+            color: var(--ink);
+            text-decoration: none;
+            font-size: 1.2rem;
+            transition: transform 160ms ease, box-shadow 160ms ease;
+        }
+
+        .back-link:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 18px rgba(16, 163, 127, 0.18);
+        }
+
+        .eyebrow {
+            text-transform: uppercase;
+            letter-spacing: 0.16em;
+            font-size: 0.68rem;
+            color: var(--muted);
+            margin-bottom: 2px;
+        }
+
+        .title {
+            font-family: "Sora", "Helvetica Neue", sans-serif;
+            font-size: clamp(1.4rem, 1.4vw + 1.2rem, 2rem);
+            margin: 0;
+        }
+
+        .sections {
+            margin-top: 28px;
+            display: grid;
+            gap: 20px;
+        }
+
+        .section {
+            padding: 20px 22px;
+            border-radius: 20px;
+            border: 1px solid var(--stroke);
+            background: var(--panel);
+        }
+
+        .section-title {
+            font-family: "Sora", sans-serif;
+            font-size: 1rem;
+            font-weight: 600;
+            margin: 0 0 16px 0;
+        }
+
+        .setting-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--stroke);
+        }
+
+        .setting-row:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .setting-row:first-child {
+            padding-top: 0;
+        }
+
+        .setting-label {
+            font-weight: 500;
+        }
+
+        .setting-description {
+            font-size: 0.85rem;
+            color: var(--muted);
+            margin-top: 4px;
+        }
+
+        .toggle {
+            position: relative;
+            width: 48px;
+            height: 28px;
+            flex-shrink: 0;
+        }
+
+        .toggle input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-track {
+            position: absolute;
+            cursor: pointer;
+            inset: 0;
+            background: var(--bg-strong);
+            border-radius: 999px;
+            border: 1px solid var(--stroke);
+            transition: background 200ms ease, border-color 200ms ease;
+        }
+
+        .toggle-track::before {
+            content: "";
+            position: absolute;
+            left: 3px;
+            top: 3px;
+            width: 20px;
+            height: 20px;
+            background: #fff;
+            border-radius: 50%;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: transform 200ms ease;
+        }
+
+        .toggle input:checked + .toggle-track {
+            background: var(--accent);
+            border-color: var(--accent);
+        }
+
+        .toggle input:checked + .toggle-track::before {
+            transform: translateX(20px);
+        }
+
+        .toggle input:focus-visible + .toggle-track {
+            box-shadow: 0 0 0 3px var(--focus);
+        }
+
+        select {
+            padding: 10px 14px;
+            border-radius: 10px;
+            border: 1px solid var(--stroke);
+            background: #fff;
+            font-size: 0.95rem;
+            font-family: inherit;
+            color: var(--ink);
+            cursor: pointer;
+            min-width: 180px;
+        }
+
+        select:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--focus);
+        }
+
+        .alias-list {
+            display: grid;
+            gap: 12px;
+        }
+
+        .alias-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 14px;
+            border-radius: 14px;
+            border: 1px solid var(--stroke);
+            background: var(--panel-alt);
+        }
+
+        .alias-name {
+            font-family: "IBM Plex Mono", monospace;
+            font-weight: 600;
+            min-width: 120px;
+        }
+
+        .alias-url {
+            font-family: "IBM Plex Mono", monospace;
+            font-size: 0.85rem;
+            color: var(--muted);
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .alias-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn {
+            border: none;
+            border-radius: 10px;
+            padding: 8px 14px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            background: var(--accent);
+            color: #fff;
+            cursor: pointer;
+            transition: transform 180ms ease, box-shadow 180ms ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 18px rgba(16, 163, 127, 0.28);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn.secondary {
+            background: #fff;
+            color: var(--ink);
+            border: 1px solid var(--stroke);
+        }
+
+        .btn.danger {
+            background: var(--danger);
+            color: #fff;
+        }
+
+        .btn.danger:hover {
+            box-shadow: 0 8px 18px rgba(179, 38, 30, 0.28);
+        }
+
+        .add-alias-form {
+            display: grid;
+            grid-template-columns: 1fr 2fr auto;
+            gap: 12px;
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid var(--stroke);
+        }
+
+        .add-alias-form input {
+            padding: 10px 14px;
+            border-radius: 10px;
+            border: 1px solid var(--stroke);
+            font-size: 0.95rem;
+            font-family: inherit;
+        }
+
+        .add-alias-form input:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--focus);
+        }
+
+        .empty-state {
+            padding: 24px;
+            text-align: center;
+            color: var(--muted);
+            border: 1px dashed var(--stroke);
+            border-radius: 14px;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            padding: 14px 20px;
+            border-radius: 14px;
+            background: var(--ink);
+            color: #fff;
+            font-weight: 500;
+            box-shadow: var(--shadow);
+            transform: translateY(100px);
+            opacity: 0;
+            transition: transform 200ms ease, opacity 200ms ease;
+            z-index: 100;
+        }
+
+        .toast.is-visible {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .toast.is-error {
+            background: var(--danger);
+        }
+
+        @media (max-width: 640px) {
+            .add-alias-form {
+                grid-template-columns: 1fr;
+            }
+
+            .alias-item {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .alias-url {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <div class="shell">
+            <header class="hero">
+                <div class="title-block">
+                    <a href="/__viewer__" class="back-link" aria-label="Back to requests">&larr;</a>
+                    <div>
+                        <div class="eyebrow">LLM Debugger</div>
+                        <h1 class="title">Settings</h1>
+                    </div>
+                </div>
+            </header>
+
+            <div class="sections">
+                <section class="section">
+                    <h2 class="section-title">General</h2>
+                    <div class="setting-row">
+                        <div>
+                            <div class="setting-label">Request Logging</div>
+                            <div class="setting-description">When disabled, the proxy still works but requests are not saved to disk.</div>
+                        </div>
+                        <label class="toggle">
+                            <input type="checkbox" id="enabled-toggle" <%= config.enabled !== false ? 'checked' : '' %>>
+                            <span class="toggle-track"></span>
+                        </label>
+                    </div>
+                </section>
+
+                <section class="section">
+                    <h2 class="section-title">Default Alias</h2>
+                    <div class="setting-row">
+                        <div>
+                            <div class="setting-label">Default Alias</div>
+                            <% if (runtimeInfo.hasExplicitTarget) { %>
+                                <div class="setting-description">Currently set via CLI --target flag<% if (runtimeInfo.targetAlias) { %>: <strong><%= runtimeInfo.targetAlias %></strong><% } %>. Restart without --target to use config.</div>
+                            <% } else { %>
+                                <div class="setting-description">Requests to the root path will be forwarded to this alias.</div>
+                            <% } %>
+                        </div>
+                        <select id="default-alias-select" <%= runtimeInfo.hasExplicitTarget ? 'disabled' : '' %>>
+                            <option value="" <%= !config.default_alias ? 'selected' : '' %>>None</option>
+                            <% Object.keys(config.aliases || {}).forEach(function(alias) { %>
+                                <option value="<%= alias %>" <%= config.default_alias === alias ? 'selected' : '' %>><%= alias %></option>
+                            <% }); %>
+                        </select>
+                    </div>
+                </section>
+
+                <section class="section">
+                    <h2 class="section-title">Aliases</h2>
+                    <% const aliasEntries = Object.entries(config.aliases || {}); %>
+                    <% if (aliasEntries.length === 0) { %>
+                        <div class="empty-state">No aliases configured. Add one below.</div>
+                    <% } else { %>
+                        <div class="alias-list">
+                            <% aliasEntries.forEach(function([name, entry]) { %>
+                                <div class="alias-item" data-alias="<%= name %>">
+                                    <span class="alias-name"><%= name %></span>
+                                    <span class="alias-url"><%= entry.url %></span>
+                                    <div class="alias-actions">
+                                        <button class="btn danger btn-delete-alias" type="button" data-alias="<%= name %>">Delete</button>
+                                    </div>
+                                </div>
+                            <% }); %>
+                        </div>
+                    <% } %>
+                    <form class="add-alias-form" id="add-alias-form">
+                        <input type="text" id="new-alias-name" placeholder="Alias name" required pattern="[a-zA-Z0-9._-]+">
+                        <input type="url" id="new-alias-url" placeholder="https://api.example.com" required>
+                        <button class="btn" type="submit">Add Alias</button>
+                    </form>
+                </section>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        const toast = document.getElementById('toast');
+        let toastTimeout = null;
+
+        function showToast(message, isError = false) {
+            if (toastTimeout) clearTimeout(toastTimeout);
+            toast.textContent = message;
+            toast.classList.toggle('is-error', isError);
+            toast.classList.add('is-visible');
+            toastTimeout = setTimeout(() => {
+                toast.classList.remove('is-visible');
+            }, 3000);
+        }
+
+        async function updateSetting(key, value) {
+            try {
+                const response = await fetch('/__viewer__/api/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ key, value }),
+                });
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to update setting');
+                }
+                showToast('Setting updated');
+                return data;
+            } catch (error) {
+                showToast(error.message, true);
+                throw error;
+            }
+        }
+
+        async function addAlias(name, url) {
+            try {
+                const response = await fetch('/__viewer__/api/aliases', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, url }),
+                });
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to add alias');
+                }
+                showToast('Alias added');
+                return data;
+            } catch (error) {
+                showToast(error.message, true);
+                throw error;
+            }
+        }
+
+        async function deleteAlias(name) {
+            try {
+                const response = await fetch(`/__viewer__/api/aliases/${encodeURIComponent(name)}`, {
+                    method: 'DELETE',
+                });
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to delete alias');
+                }
+                showToast('Alias deleted');
+                return data;
+            } catch (error) {
+                showToast(error.message, true);
+                throw error;
+            }
+        }
+
+        // Enabled toggle
+        const enabledToggle = document.getElementById('enabled-toggle');
+        if (enabledToggle) {
+            enabledToggle.addEventListener('change', async () => {
+                try {
+                    await updateSetting('enabled', enabledToggle.checked);
+                } catch {
+                    enabledToggle.checked = !enabledToggle.checked;
+                }
+            });
+        }
+
+        // Default alias select
+        const defaultAliasSelect = document.getElementById('default-alias-select');
+        if (defaultAliasSelect) {
+            defaultAliasSelect.addEventListener('change', async () => {
+                const value = defaultAliasSelect.value || null;
+                try {
+                    await updateSetting('default_alias', value);
+                } catch {
+                    // Revert on error - would need to track previous value
+                }
+            });
+        }
+
+        // Add alias form
+        const addAliasForm = document.getElementById('add-alias-form');
+        if (addAliasForm) {
+            addAliasForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const nameInput = document.getElementById('new-alias-name');
+                const urlInput = document.getElementById('new-alias-url');
+                const name = nameInput.value.trim();
+                const url = urlInput.value.trim();
+                if (!name || !url) return;
+
+                try {
+                    await addAlias(name, url);
+                    window.location.reload();
+                } catch {
+                    // Error already shown via toast
+                }
+            });
+        }
+
+        // Delete alias buttons
+        document.querySelectorAll('.btn-delete-alias').forEach((btn) => {
+            btn.addEventListener('click', async () => {
+                const alias = btn.dataset.alias;
+                if (!alias) return;
+                if (!confirm(`Delete alias "${alias}"?`)) return;
+
+                try {
+                    await deleteAlias(alias);
+                    window.location.reload();
+                } catch {
+                    // Error already shown via toast
+                }
+            });
+        });
+    </script>
+</body>
+</html>

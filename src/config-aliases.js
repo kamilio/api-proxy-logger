@@ -104,3 +104,26 @@ export function setDefaultAliasInConfig(aliasName, configPath = getConfigEditPat
   writeConfigFile(configPath, config);
   return { configPath, alias: aliasName };
 }
+
+const ALLOWED_CONFIG_KEYS = ['enabled', 'default_alias'];
+
+function parseValue(value) {
+  if (value === true || value === false) return value;
+  if (value === null) return null;
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  if (value === 'null' || value === '') return null;
+  if (typeof value === 'string' && /^\d+$/.test(value)) return parseInt(value, 10);
+  return value;
+}
+
+export function setConfigValue(key, value, configPath = getConfigEditPath()) {
+  if (!ALLOWED_CONFIG_KEYS.includes(key)) {
+    throw new Error(`Unknown config key: ${key}. Allowed keys: ${ALLOWED_CONFIG_KEYS.join(', ')}`);
+  }
+
+  const config = readConfigFile(configPath);
+  config[key] = parseValue(value);
+  writeConfigFile(configPath, config);
+  return { configPath, key, value: config[key] };
+}

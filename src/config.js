@@ -7,6 +7,7 @@ import { getConfigPath, getHomeConfigPath } from './paths.js';
 // Support environment-based configuration paths
 let cachedPath = null;
 export const DEFAULT_CONFIG = {
+  enabled: true,
   env: {},
   ignore_routes: [],
   hide_from_viewer: [],

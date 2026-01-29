@@ -1,5 +1,8 @@
 # LLM Debugger Configuration
 
+# Enable/disable request logging (proxy still works when disabled)
+enabled: true
+
 # Environment variables loaded into process.env
 env: {}
 

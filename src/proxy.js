@@ -59,19 +59,21 @@ export async function createProxyHandler(req, res, config) {
     EXCLUDED_RESPONSE_HEADERS
   );
 
-  // Log the request/response
-  await logRequest(config.outputDir, {
-    provider: config.provider,
-    method,
-    url: targetUrl,
-    requestHeaders: outgoingHeaders,
-    requestBody: parseBody(body),
-    status: response.status,
-    responseHeaders: Object.fromEntries(response.headers.entries()),
-    responseBody: parseBody(Buffer.from(responseBody)),
-    isStreaming: false,
-    duration: Date.now() - startTime,
-  });
+  // Log the request/response (if enabled)
+  if (config.loggingEnabled !== false) {
+    await logRequest(config.outputDir, {
+      provider: config.provider,
+      method,
+      url: targetUrl,
+      requestHeaders: outgoingHeaders,
+      requestBody: parseBody(body),
+      status: response.status,
+      responseHeaders: Object.fromEntries(response.headers.entries()),
+      responseBody: parseBody(Buffer.from(responseBody)),
+      isStreaming: false,
+      duration: Date.now() - startTime,
+    });
+  }
 
   // Send response
   res.status(response.status);
@@ -131,20 +133,22 @@ export async function createStreamingProxyHandler(req, res, config) {
       reader.releaseLock();
       res.end();
 
-      // Log after stream completes
-      const fullResponse = Buffer.concat(chunks.map((c) => Buffer.from(c)));
-      await logRequest(config.outputDir, {
-        provider: config.provider,
-        method,
-        url: targetUrl,
-        requestHeaders: outgoingHeaders,
-        requestBody: parseBody(body),
-        status: response.status,
-        responseHeaders: Object.fromEntries(response.headers.entries()),
-        responseBody: parseStreamingBody(fullResponse),
-        isStreaming: true,
-        duration: Date.now() - startTime,
-      });
+      // Log after stream completes (if enabled)
+      if (config.loggingEnabled !== false) {
+        const fullResponse = Buffer.concat(chunks.map((c) => Buffer.from(c)));
+        await logRequest(config.outputDir, {
+          provider: config.provider,
+          method,
+          url: targetUrl,
+          requestHeaders: outgoingHeaders,
+          requestBody: parseBody(body),
+          status: response.status,
+          responseHeaders: Object.fromEntries(response.headers.entries()),
+          responseBody: parseStreamingBody(fullResponse),
+          isStreaming: true,
+          duration: Date.now() - startTime,
+        });
+      }
     }
   } else {
     res.end();

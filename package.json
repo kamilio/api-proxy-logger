@@ -17,6 +17,7 @@
     "screenshot_index": "node scripts/screenshot-index.js",
     "screenshot_detail": "node scripts/screenshot-detail.js",
     "screenshot_compare": "node scripts/screenshot-compare.js",
+    "screenshot_settings": "node scripts/screenshot-settings.js",
     "verify:anthropic": "node scripts/verify-anthropic.js",
     "verify:openai": "node scripts/verify-openai.js"
   },

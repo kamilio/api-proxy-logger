@@ -74,6 +74,7 @@ export function createServer(config, { onListen } = {}) {
       targetUrl,
       provider: providerLabel,
       proxyHeaders,
+      loggingEnabled: runtimeConfig.enabled !== false,
     };
 
     try {

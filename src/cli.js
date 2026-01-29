@@ -11,7 +11,7 @@ import { getConfigPath, getHomeConfigPath } from './paths.js';
 import { getConfigDisplayContent, getConfigEditPath } from './config-file.js';
 import { getEditorCandidates } from './editor.js';
 import { resolveAliasConfig } from './aliases.js';
-import { addAliasToConfig, removeAliasFromConfig, setDefaultAliasInConfig } from './config-aliases.js';
+import { addAliasToConfig, removeAliasFromConfig, setDefaultAliasInConfig, setConfigValue } from './config-aliases.js';
 import { buildServerConfig } from './server-config.js';
 
 async function main() {
@@ -83,6 +83,7 @@ Usage:
   llm-debugger config add-alias <alias> <url>
   llm-debugger config remove-alias <alias>
   llm-debugger config set-default-alias <alias>
+  llm-debugger config set <key> <value>
 
 Options:
   --proxy-host <host>  Proxy host (default: localhost)
@@ -204,6 +205,11 @@ function runConfigCommand(subcommand, args) {
     return;
   }
 
+  if (subcommand === 'set') {
+    runConfigSet(args);
+    return;
+  }
+
   log.error(`Unknown config command: ${subcommand}`);
   process.exitCode = 1;
 }
@@ -263,6 +269,25 @@ function runConfigSetDefaultAlias(args) {
   const result = setDefaultAliasInConfig(aliasName);
   log.success(`Set default alias to ${result.alias}`);
   log.info(`Config: ${result.configPath}`);
+}
+
+function runConfigSet(args) {
+  const [key, value] = args;
+  if (!key || value === undefined) {
+    log.error('Usage: llm-debugger config set <key> <value>');
+    log.info('Available keys: enabled');
+    process.exitCode = 1;
+    return;
+  }
+
+  try {
+    const result = setConfigValue(key, value);
+    log.success(`Set ${result.key} = ${result.value}`);
+    log.info(`Config: ${result.configPath}`);
+  } catch (err) {
+    log.error(err.message);
+    process.exitCode = 1;
+  }
 }
 
 main();
