@@ -71,6 +71,7 @@ export async function logRequest(outputDir, data) {
 
 export async function getRecentLogs(outputDir, limitOrOptions = 20, provider = null) {
   let limit = 20;
+  let offset = 0;
   let providerFilter = null;
   let baseUrls = null;
   let methods = null;
@@ -79,6 +80,7 @@ export async function getRecentLogs(outputDir, limitOrOptions = 20, provider = n
 
   if (typeof limitOrOptions === 'object' && limitOrOptions !== null) {
     limit = Number.isFinite(limitOrOptions.limit) ? limitOrOptions.limit : 20;
+    offset = Number.isFinite(limitOrOptions.offset) ? limitOrOptions.offset : 0;
     providerFilter = limitOrOptions.provider || null;
     baseUrls = limitOrOptions.baseUrls || null;
     methods = limitOrOptions.methods || null;
@@ -148,13 +150,14 @@ export async function getRecentLogs(outputDir, limitOrOptions = 20, provider = n
       aliases,
       aliasHostMap,
     });
-    return filteredLogs
-      .sort((a, b) => {
-        const aTime = Date.parse(a.timestamp || '') || 0;
-        const bTime = Date.parse(b.timestamp || '') || 0;
-        return bTime - aTime;
-      })
-      .slice(0, limit);
+    const sorted = filteredLogs.sort((a, b) => {
+      const aTime = Date.parse(a.timestamp || '') || 0;
+      const bTime = Date.parse(b.timestamp || '') || 0;
+      return bTime - aTime;
+    });
+    const total = sorted.length;
+    const paginated = sorted.slice(offset, offset + limit);
+    return { logs: paginated, total };
   } catch (error) {
     if (error.code === 'ENOENT') {
       return [];

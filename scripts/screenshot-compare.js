@@ -15,7 +15,7 @@ async function main() {
   const { server, viewerUrl, outputDir } = await startScreenshotServer();
   let browser;
   try {
-    const logs = await getRecentLogs(outputDir, { limit: 3 });
+    const { logs } = await getRecentLogs(outputDir, { limit: 3 });
     if (logs.length < 3) {
       throw new Error('Need at least 3 logs to capture compare screenshot.');
     }

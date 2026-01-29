@@ -58,6 +58,9 @@ async function getSettingsTemplate() {
 export async function renderViewer({
   logs,
   limit,
+  page,
+  totalPages,
+  total,
   baseUrlFilters,
   aliasFilters,
   methodFilters,
@@ -67,6 +70,9 @@ export async function renderViewer({
   return ejs.render(template, {
     logs,
     limit,
+    page,
+    totalPages,
+    total,
     baseUrlFilters,
     aliasFilters,
     methodFilters,

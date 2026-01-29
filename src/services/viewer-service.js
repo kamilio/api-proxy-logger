@@ -32,10 +32,11 @@ export const COMPARE_SECTIONS = [
 
 export async function getViewerIndexData(
   outputDir,
-  { limit, provider, baseUrls, methods, aliases, aliasHostMap }
+  { limit, offset, provider, baseUrls, methods, aliases, aliasHostMap }
 ) {
-  const logs = await getRecentLogs(outputDir, {
+  const { logs, total } = await getRecentLogs(outputDir, {
     limit,
+    offset,
     provider,
     baseUrls,
     methods,
@@ -43,7 +44,7 @@ export async function getViewerIndexData(
     aliasHostMap,
   });
   const providerMeta = collectProviders(logs);
-  return { logs, providerMeta };
+  return { logs, total, providerMeta };
 }
 
 export function collectProviders(logs) {
@@ -84,6 +85,9 @@ export function buildBackLink(query) {
   const params = new URLSearchParams();
   if (query?.limit) {
     params.set('limit', String(query.limit));
+  }
+  if (query?.page && query.page !== '1') {
+    params.set('page', String(query.page));
   }
   if (query?.baseUrl) {
     params.set('baseUrl', String(query.baseUrl));

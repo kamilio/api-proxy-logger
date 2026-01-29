@@ -807,6 +807,62 @@
                 justify-content: stretch;
             }
         }
+
+        .pagination {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 24px;
+            padding: 16px;
+        }
+
+        .pagination-info {
+            font-size: 0.875rem;
+            color: var(--muted);
+            margin-right: 16px;
+        }
+
+        .pagination-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 36px;
+            height: 36px;
+            padding: 0 12px;
+            border-radius: 10px;
+            border: 1px solid var(--stroke);
+            background: #fff;
+            color: var(--ink);
+            font-size: 0.875rem;
+            font-weight: 500;
+            text-decoration: none;
+            cursor: pointer;
+            transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
+        }
+
+        .pagination-btn:hover:not(.is-disabled):not(.is-current) {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 18px rgba(16, 163, 127, 0.18);
+            background: var(--panel-alt);
+        }
+
+        .pagination-btn.is-current {
+            background: var(--accent);
+            color: #fff;
+            border-color: var(--accent);
+        }
+
+        .pagination-btn.is-disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
+        .pagination-ellipsis {
+            color: var(--muted);
+            padding: 0 4px;
+        }
     </style>
 </head>
 <body>
@@ -1010,6 +1066,46 @@
                     <% }); %>
                 <% } %>
             </section>
+
+            <% if (totalPages > 1) { %>
+                <%
+                    function buildPageUrl(targetPage) {
+                        const params = new URLSearchParams();
+                        if (limit && limit !== 20) params.set('limit', limit);
+                        if (targetPage > 1) params.set('page', targetPage);
+                        if (baseUrlFilters && baseUrlFilters.length) params.set('baseUrl', baseUrlFilters.join(','));
+                        if (aliasFilters && aliasFilters.length) params.set('alias', aliasFilters.join(','));
+                        if (methodFilters && methodFilters.length) params.set('method', methodFilters.join(','));
+                        const search = params.toString();
+                        return search ? `/__viewer__?${search}` : '/__viewer__';
+                    }
+
+                    const maxVisible = 5;
+                    let startPage = Math.max(1, page - Math.floor(maxVisible / 2));
+                    let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+                    if (endPage - startPage + 1 < maxVisible) {
+                        startPage = Math.max(1, endPage - maxVisible + 1);
+                    }
+                %>
+                <nav class="pagination" aria-label="Pagination">
+                    <span class="pagination-info">
+                        Page <%= page %> of <%= totalPages %> (<%= total %> total)
+                    </span>
+                    <a href="<%= buildPageUrl(page - 1) %>" class="pagination-btn <%= page <= 1 ? 'is-disabled' : '' %>" aria-label="Previous page">&larr;</a>
+                    <% if (startPage > 1) { %>
+                        <a href="<%= buildPageUrl(1) %>" class="pagination-btn">1</a>
+                        <% if (startPage > 2) { %><span class="pagination-ellipsis">...</span><% } %>
+                    <% } %>
+                    <% for (let p = startPage; p <= endPage; p++) { %>
+                        <a href="<%= buildPageUrl(p) %>" class="pagination-btn <%= p === page ? 'is-current' : '' %>"><%= p %></a>
+                    <% } %>
+                    <% if (endPage < totalPages) { %>
+                        <% if (endPage < totalPages - 1) { %><span class="pagination-ellipsis">...</span><% } %>
+                        <a href="<%= buildPageUrl(totalPages) %>" class="pagination-btn"><%= totalPages %></a>
+                    <% } %>
+                    <a href="<%= buildPageUrl(page + 1) %>" class="pagination-btn <%= page >= totalPages ? 'is-disabled' : '' %>" aria-label="Next page">&rarr;</a>
+                </nav>
+            <% } %>
         </div>
     </div>
 

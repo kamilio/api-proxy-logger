@@ -24,20 +24,24 @@ export function createViewerController(config) {
   return {
     index: async (req, res) => {
       const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 100);
+      const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+      const offset = (page - 1) * limit;
       const baseUrlFilters = normalizeBaseUrlFilters(parseCsvParam(req.query.baseUrl));
       const aliasFilters = normalizeAliasFilters(parseCsvParam(req.query.alias));
       const methodFilters = normalizeMethodFilters(parseCsvParam(req.query.method));
       const { aliasByHost, aliasHostMap, aliasNameMap } = buildAliasMaps(config.aliases);
-      const { logs } = await getViewerIndexData(
+      const { logs, total } = await getViewerIndexData(
         config.outputDir,
         {
           limit,
+          offset,
           baseUrls: baseUrlFilters,
           aliases: aliasFilters,
           methods: methodFilters,
           aliasHostMap,
         }
       );
+      const totalPages = Math.ceil(total / limit);
 
       const processedLogs = logs.map((log) => {
         const baseUrl = normalizeBaseUrlValue(log?.request?.url);
@@ -73,6 +77,9 @@ export function createViewerController(config) {
         {
           logs: processedLogs,
           limit,
+          page,
+          totalPages,
+          total,
           baseUrlFilters,
           aliasFilters,
           methodFilters,

@@ -42,10 +42,12 @@ export async function stopScreenshotServer(server) {
 }
 
 export async function ensureLatestLog(outputDir) {
-  let [log] = await getRecentLogs(outputDir, { limit: 1 });
+  let { logs } = await getRecentLogs(outputDir, { limit: 1 });
+  let [log] = logs;
   if (!log) {
     await withSilentConsole(() => logRequest(outputDir, buildSampleLog()));
-    [log] = await getRecentLogs(outputDir, { limit: 1 });
+    ({ logs } = await getRecentLogs(outputDir, { limit: 1 }));
+    [log] = logs;
   }
   if (!log) {
     throw new Error('Unable to create a sample log for screenshots.');
