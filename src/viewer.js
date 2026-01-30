@@ -64,6 +64,7 @@ export async function renderViewer({
   baseUrlFilters,
   aliasFilters,
   methodFilters,
+  pinnedFilter,
   aliasByHost,
 }) {
   const template = await getTemplate();
@@ -76,6 +77,7 @@ export async function renderViewer({
     baseUrlFilters,
     aliasFilters,
     methodFilters,
+    pinnedFilter,
     aliasByHost,
   });
 }

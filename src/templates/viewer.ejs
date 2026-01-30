@@ -400,7 +400,6 @@
             text-decoration: none;
             color: inherit;
             position: relative;
-            overflow: hidden;
             animation: none;
             cursor: pointer;
             outline: none;
@@ -634,9 +633,11 @@
             content: "";
             position: absolute;
             inset: 0;
+            border-radius: 20px;
             background: linear-gradient(120deg, rgba(16, 163, 127, 0.08), transparent 55%);
             opacity: 0;
             transition: opacity 200ms ease;
+            pointer-events: none;
         }
 
         .log-card:hover::after {
@@ -644,9 +645,8 @@
         }
 
         .log-card:hover {
-            transform: translateY(-2px);
-            box-shadow: var(--shadow-soft);
-            border-color: rgba(16, 163, 127, 0.2);
+            border-color: rgba(16, 163, 127, 0.25);
+            background: linear-gradient(135deg, rgba(16, 163, 127, 0.03), var(--panel) 60%);
         }
 
         .log-top,
@@ -677,6 +677,11 @@
         .method.put { background: rgba(200, 120, 28, 0.12); color: #7a4d16; }
         .method.delete { background: rgba(179, 38, 30, 0.12); color: #7e1f18; }
         .method.patch { background: rgba(96, 74, 155, 0.12); color: #4a3a8a; }
+
+        .pin-indicator {
+            font-size: 0.9rem;
+            opacity: 0.7;
+        }
 
         .url {
             font-family: "IBM Plex Mono", monospace;
@@ -871,7 +876,8 @@
             <% const baseUrls = (baseUrlFilters || []).filter(Boolean); %>
             <% const aliasFiltersList = (aliasFilters || []).filter(Boolean); %>
             <% const methods = (methodFilters || []).filter(Boolean); %>
-            <% const activeFilters = baseUrls.length + aliasFiltersList.length + methods.length; %>
+            <% const isPinnedFilter = pinnedFilter || false; %>
+            <% const activeFilters = baseUrls.length + aliasFiltersList.length + methods.length + (isPinnedFilter ? 1 : 0); %>
             <% const visibleLogs = logs.reduce((count, log) => count + (log._hidden ? 0 : 1), 0); %>
             <% const hiddenLogs = logs.length - visibleLogs; %>
             <% const filterSummary = activeFilters ? `${activeFilters} active` : 'none'; %>
@@ -939,6 +945,12 @@
                                         <span class="chip-remove">remove</span>
                                     </button>
                                 <% }) %>
+                                <% if (isPinnedFilter) { %>
+                                    <button class="chip" type="button" data-filter="pinned" aria-label="Remove pinned filter">
+                                        <strong>Pinned only</strong>
+                                        <span class="chip-remove">remove</span>
+                                    </button>
+                                <% } %>
                             </div>
                             <div class="filters-actions">
                                 <button class="btn secondary" id="clear-filters" type="button" <%= activeFilters ? '' : 'disabled' %>>Clear filters</button>
@@ -946,6 +958,7 @@
                         </div>
                     </details>
                     <div class="control-actions">
+                        <button class="btn secondary" id="pinned-toggle" type="button"><%= isPinnedFilter ? 'Show All' : 'Pinned' %></button>
                         <button class="btn secondary" id="compare-toggle" type="button">Compare</button>
                         <button class="btn" onclick="refresh()" type="button">Refresh</button>
                     </div>
@@ -955,7 +968,7 @@
             <div class="compare-bar" id="compare-bar" aria-live="polite">
                 <div>
                     <div class="compare-title">Compare mode</div>
-                    <div class="compare-subtitle" id="compare-subtitle">Select 2-3 logs to compare.</div>
+                    <div class="compare-subtitle" id="compare-subtitle">Select 2-5 logs to compare.</div>
                 </div>
                 <button class="btn" id="compare-submit" type="button" disabled>Compare Selected</button>
             </div>
@@ -1033,11 +1046,15 @@
                                 <div class="overflow">
                                     <button class="overflow-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Open log actions">...</button>
                                     <div class="overflow-panel" role="menu">
+                                        <button class="overflow-item overflow-pin" type="button" role="menuitem"><%= log._pinned ? 'Unpin' : 'Pin' %></button>
                                         <button class="overflow-item is-danger" type="button" role="menuitem">Delete</button>
                                     </div>
                                 </div>
                                 <div class="log-top">
                                     <span class="method <%= methodClass %>"><%= methodLabel %></span>
+                                    <% if (log._pinned) { %>
+                                        <span class="pin-indicator" title="Pinned">&#128204;</span>
+                                    <% } %>
                                     <span class="url"><%= log.request.url %></span>
                                     <% if (log.response.is_streaming) { %>
                                         <span class="pill">Streaming</span>
@@ -1192,6 +1209,10 @@
                 const filterType = chip.dataset.filter;
                 const filterValue = chip.dataset.value || '';
                 if (!filterType) return;
+                if (filterType === 'pinned') {
+                    togglePinnedFilter();
+                    return;
+                }
                 if (!filterValue) return;
                 if (filterType === 'baseUrl') {
                     removeFilterValue('baseUrl', filterValue);
@@ -1203,13 +1224,28 @@
             });
         });
 
+        function togglePinnedFilter() {
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('pinned') === '1') {
+                params.delete('pinned');
+            } else {
+                params.set('pinned', '1');
+            }
+            window.location.href = '/__viewer__?' + params.toString();
+        }
+
+        const pinnedToggle = document.getElementById('pinned-toggle');
+        if (pinnedToggle) {
+            pinnedToggle.addEventListener('click', togglePinnedFilter);
+        }
+
         const compareToggle = document.getElementById('compare-toggle');
         const compareBar = document.getElementById('compare-bar');
         const compareSubmit = document.getElementById('compare-submit');
         const compareSubtitle = document.getElementById('compare-subtitle');
         const compareInputs = Array.from(document.querySelectorAll('.compare-input'));
         const compareCards = Array.from(document.querySelectorAll('.log-card[data-provider][data-filename]'));
-        const selectionLimit = 3;
+        const selectionLimit = 5;
         let compareActive = false;
 
         function getSelectedCards() {
@@ -1232,7 +1268,7 @@
 
             if (compareSubtitle) {
                 if (!compareActive) {
-                    compareSubtitle.textContent = 'Select 2-3 logs to compare.';
+                    compareSubtitle.textContent = 'Select 2-5 logs to compare.';
                 } else if (selectedCount < 2) {
                     const remaining = 2 - selectedCount;
                     compareSubtitle.textContent = `Selected ${selectedCount}/${selectionLimit}. Select ${remaining} more.`;
@@ -1376,9 +1412,33 @@
             }
         }
 
+        async function togglePin(entry, button) {
+            if (!entry) return;
+            const provider = entry.dataset.provider || 'unknown';
+            const filename = entry.dataset.filename || '';
+            if (!filename) return;
+
+            const isPinned = button.textContent.trim() === 'Unpin';
+            const method = isPinned ? 'DELETE' : 'POST';
+            const pinUrl = `/__viewer__/${encodeURIComponent(provider)}/${encodeURIComponent(filename)}/pin`;
+
+            try {
+                const response = await fetch(pinUrl, { method });
+                if (!response.ok) {
+                    const data = await response.json().catch(() => ({}));
+                    alert('Failed to ' + (isPinned ? 'unpin' : 'pin') + ': ' + (data.error || 'Unknown error'));
+                    return;
+                }
+                window.location.reload();
+            } catch (error) {
+                alert('Failed to ' + (isPinned ? 'unpin' : 'pin') + ': ' + error.message);
+            }
+        }
+
         overflowMenus.forEach((menu) => {
             const trigger = menu.querySelector('.overflow-trigger');
             const deleteButton = menu.querySelector('.overflow-item.is-danger');
+            const pinButton = menu.querySelector('.overflow-pin');
             const entry = menu.closest('[data-provider][data-filename]');
 
             if (trigger) {
@@ -1388,6 +1448,13 @@
                     closeOverflowMenus(menu);
                     menu.classList.toggle('is-open', nextState);
                     trigger.setAttribute('aria-expanded', nextState ? 'true' : 'false');
+                });
+            }
+
+            if (pinButton) {
+                pinButton.addEventListener('click', (event) => {
+                    event.stopPropagation();
+                    togglePin(entry, pinButton);
                 });
             }
 

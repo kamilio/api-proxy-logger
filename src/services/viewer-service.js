@@ -124,7 +124,7 @@ export function buildCompareData(logs, { baselineIndex = 0 } = {}) {
   return { sections, baselineIndex: clampedBaseline };
 }
 
-export function parseCompareLogSelection(value, { max = 3 } = {}) {
+export function parseCompareLogSelection(value, { max = 5 } = {}) {
   const selections = [];
   const invalid = [];
   const seen = new Set();

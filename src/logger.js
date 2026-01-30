@@ -4,6 +4,7 @@ import yaml from 'js-yaml';
 import { sanitizeBody, sanitizeHeaders, sanitizeUrl } from './redact.js';
 import { filterLogs } from './viewer-filters.js';
 import { loadConfig } from './config.js';
+import { getPinnedSet } from './pinned.js';
 
 function generateFilename() {
   const now = new Date();
@@ -34,13 +35,13 @@ async function getAllLogFiles(outputDir) {
     const rootEntries = await readdir(outputDir, { withFileTypes: true });
     for (const entry of rootEntries) {
       if (entry.isFile() && entry.name.endsWith('.yaml')) {
-        files.push({ path: join(outputDir, entry.name), name: entry.name });
+        files.push({ path: join(outputDir, entry.name), name: entry.name, logId: `unknown/${entry.name}` });
       } else if (entry.isDirectory()) {
         try {
           const subFiles = await readdir(join(outputDir, entry.name));
           for (const subFile of subFiles) {
             if (subFile.endsWith('.yaml')) {
-              files.push({ path: join(outputDir, entry.name, subFile), name: subFile });
+              files.push({ path: join(outputDir, entry.name, subFile), name: subFile, logId: `${entry.name}/${subFile}` });
             }
           }
         } catch {
@@ -60,12 +61,17 @@ async function rotateLogsIfNeeded(outputDir) {
   if (!maxLogs || maxLogs <= 0) return;
 
   const files = await getAllLogFiles(outputDir);
-  if (files.length <= maxLogs) return;
+  const pinnedSet = getPinnedSet();
+
+  // Separate pinned and unpinned files
+  const unpinnedFiles = files.filter((f) => !pinnedSet.has(f.logId));
+
+  if (unpinnedFiles.length <= maxLogs) return;
 
   // Sort by filename (which contains timestamp) - oldest first
-  files.sort((a, b) => a.name.localeCompare(b.name));
+  unpinnedFiles.sort((a, b) => a.name.localeCompare(b.name));
 
-  const toDelete = files.slice(0, files.length - maxLogs);
+  const toDelete = unpinnedFiles.slice(0, unpinnedFiles.length - maxLogs);
   for (const file of toDelete) {
     try {
       await unlink(file.path);

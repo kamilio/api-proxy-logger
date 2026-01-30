@@ -19,6 +19,7 @@ import {
 } from '../viewer-filters.js';
 import { logToHar } from '../services/har-service.js';
 import { logToPython } from '../services/python-service.js';
+import { pinLog, unpinLog, isPinned, getPinnedSet } from '../pinned.js';
 
 export function createViewerController(config) {
   return {
@@ -29,19 +30,21 @@ export function createViewerController(config) {
       const baseUrlFilters = normalizeBaseUrlFilters(parseCsvParam(req.query.baseUrl));
       const aliasFilters = normalizeAliasFilters(parseCsvParam(req.query.alias));
       const methodFilters = normalizeMethodFilters(parseCsvParam(req.query.method));
+      const pinnedFilter = req.query.pinned === '1';
       const { aliasByHost, aliasHostMap, aliasNameMap } = buildAliasMaps(config.aliases);
+      const pinnedSet = getPinnedSet();
+
       const { logs, total } = await getViewerIndexData(
         config.outputDir,
         {
-          limit,
-          offset,
+          limit: pinnedFilter ? 1000 : limit,
+          offset: pinnedFilter ? 0 : offset,
           baseUrls: baseUrlFilters,
           aliases: aliasFilters,
           methods: methodFilters,
           aliasHostMap,
         }
       );
-      const totalPages = Math.ceil(total / limit);
 
       const processedLogs = logs.map((log) => {
         const baseUrl = normalizeBaseUrlValue(log?.request?.url);
@@ -51,6 +54,8 @@ export function createViewerController(config) {
           (baseUrl ? aliasByHost[baseUrl] : null) ||
           null;
         const messageCount = getRequestMessageCount(log);
+        const logId = `${log._viewer_provider}/${log._viewer_file}`;
+        const logPinned = pinnedSet.has(logId);
         try {
           const url = new URL(log.request.url);
           const hidden = shouldHideFromViewer(url.pathname);
@@ -61,6 +66,7 @@ export function createViewerController(config) {
             _base_url: baseUrl,
             _alias: aliasLabel,
             _message_count: messageCount,
+            _pinned: logPinned,
           };
         } catch {
           return {
@@ -69,20 +75,32 @@ export function createViewerController(config) {
             _base_url: baseUrl,
             _alias: aliasLabel,
             _message_count: messageCount,
+            _pinned: logPinned,
           };
         }
       });
 
+      // Filter to pinned only if requested
+      const filteredLogs = pinnedFilter
+        ? processedLogs.filter((log) => log._pinned)
+        : processedLogs;
+      const filteredTotal = pinnedFilter ? filteredLogs.length : total;
+      const paginatedLogs = pinnedFilter
+        ? filteredLogs.slice(offset, offset + limit)
+        : filteredLogs;
+      const totalPages = Math.ceil(filteredTotal / limit);
+
       const html = await renderViewer(
         {
-          logs: processedLogs,
+          logs: paginatedLogs,
           limit,
           page,
           totalPages,
-          total,
+          total: filteredTotal,
           baseUrlFilters,
           aliasFilters,
           methodFilters,
+          pinnedFilter,
           aliasByHost,
         }
       );
@@ -140,7 +158,7 @@ export function createViewerController(config) {
 
         if (invalid.length || selections.length < 2) {
           const message = invalid.length
-            ? 'Invalid compare selection. Choose two or three valid log entries.'
+            ? 'Invalid compare selection. Choose two to five valid log entries.'
             : 'Select at least two logs to compare.';
           const html = await renderViewerCompare({
             logs: [],
@@ -304,6 +322,46 @@ export function createViewerController(config) {
       } catch (error) {
         console.error('Viewer download Python error:', error.message);
         res.status(500).json({ error: 'Download Python error', message: error.message });
+      }
+    },
+
+    pin: async (req, res) => {
+      try {
+        const { provider, filename } = req.params;
+        const logId = `${provider}/${filename}`;
+        const log = await loadViewerLog(config.outputDir, provider, filename);
+        if (!log) {
+          res.status(404).json({ error: 'Not found' });
+          return;
+        }
+        const result = pinLog(logId);
+        res.json({ success: true, ...result });
+      } catch (error) {
+        console.error('Viewer pin error:', error.message);
+        res.status(500).json({ error: 'Pin error', message: error.message });
+      }
+    },
+
+    unpin: async (req, res) => {
+      try {
+        const { provider, filename } = req.params;
+        const logId = `${provider}/${filename}`;
+        const result = unpinLog(logId);
+        res.json({ success: true, ...result });
+      } catch (error) {
+        console.error('Viewer unpin error:', error.message);
+        res.status(500).json({ error: 'Unpin error', message: error.message });
+      }
+    },
+
+    getPinStatus: async (req, res) => {
+      try {
+        const { provider, filename } = req.params;
+        const logId = `${provider}/${filename}`;
+        res.json({ pinned: isPinned(logId), logId });
+      } catch (error) {
+        console.error('Viewer pin status error:', error.message);
+        res.status(500).json({ error: 'Pin status error', message: error.message });
       }
     },
   };

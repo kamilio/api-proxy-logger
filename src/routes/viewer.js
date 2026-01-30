@@ -17,6 +17,9 @@ export function createViewerRouter(config) {
   router.get('/:provider/:filename/har', controller.downloadHar);
   router.get('/:provider/:filename/python', controller.downloadPython);
   router.delete('/:provider/:filename', controller.delete);
+  router.post('/:provider/:filename/pin', controller.pin);
+  router.delete('/:provider/:filename/pin', controller.unpin);
+  router.get('/:provider/:filename/pin', controller.getPinStatus);
   router.all('*', (req, res) => {
     res.status(404).json({ error: 'Not found' });
   });
