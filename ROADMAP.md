@@ -2,13 +2,13 @@
 
 ## Compare
 
-Compare up to 3 logs side-by-side.
+Compare up to 5 logs side-by-side.
 
 ### Flow
 
 1. Click "Compare" button on index page → enters selection mode
 2. Checkboxes appear on each log card
-3. Select 2-3 logs (max 3)
+3. Select 2-5 logs (max 5)
 4. "Compare Selected" button appears → navigates to compare page with selected log IDs
 
 ### Compare Page
@@ -34,8 +34,36 @@ Compare up to 3 logs side-by-side.
 
 ---
 
+## Pinned Logs
+
+Pin important logs to protect them from log rotation and quickly filter to them.
+
+### Features
+
+- **Pin/Unpin**: Click "..." menu on any log card → select "Pin" or "Unpin"
+- **Pin indicator**: Pinned logs show a 📌 icon in the index view
+- **Pinned filter**: Click "Pinned" button to show only pinned logs
+- **Rotation protection**: Pinned logs are never deleted by log rotation
+- **Storage**: Pinned log IDs stored in `~/.llm-debugger/pinned.yaml`
+
+### API
+
+- `POST /__viewer__/:provider/:filename/pin` — pin a log
+- `DELETE /__viewer__/:provider/:filename/pin` — unpin a log
+- `GET /__viewer__/:provider/:filename/pin` — check pin status
+
+---
+
+## Log Rotation
+
+Automatically delete oldest logs when the total exceeds a configured limit.
+
+### Config
+
+- `max_logs: 100` (default) — set to `0` for unlimited
+- Configurable via UI (Settings → Max Logs) or CLI (`llm-debugger config set max_logs 50`)
+- Pinned logs are excluded from rotation
+
+---
+
 ## Backlog (DO NOT IMPLEMENT)
-
-### Pinned reference column
-
-Pin one log as the "baseline" (left-most, fixed position) while scrolling through others horizontally. Useful for comparing variations against a known-good request.

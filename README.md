@@ -75,6 +75,28 @@ Config lives at `~/.llm-debugger/config.yaml` and logs at `~/.llm-debugger/logs`
 
 - `LLM_DEBUGGER_HOME` - Base directory
 
+### Environment Variables
+
+Define env vars in your config and reference them in alias headers with `${VAR_NAME}`:
+
+```yaml
+env:
+  OPENAI_API_KEY: sk-xxx
+  ANTHROPIC_API_KEY: sk-ant-xxx
+
+aliases:
+  openai:
+    url: "https://api.openai.com"
+    headers:
+      Authorization: "Bearer ${OPENAI_API_KEY}"
+  anthropic:
+    url: "https://api.anthropic.com"
+    headers:
+      x-api-key: "${ANTHROPIC_API_KEY}"
+```
+
+Env vars defined in `env` are loaded at startup with lowest precedence — real environment variables and `.env` files take priority.
+
 ### Config Commands
 
 ```bash
@@ -83,6 +105,7 @@ npx llm-debugger@latest config edit              # Open config in editor
 npx llm-debugger@latest config add-alias <name> <url>    # Add an alias
 npx llm-debugger@latest config remove-alias <name>       # Remove an alias
 npx llm-debugger@latest config set-default-alias <name>  # Set default alias for root requests
+npx llm-debugger@latest config set <key> <value>         # Set a config value (enabled, max_logs)
 ```
 
 ## License
