@@ -1,5 +1,8 @@
-export function getEditorCandidates({ env = process.env, platform = process.platform } = {}) {
+export function getEditorCandidates({ env = process.env, platform = process.platform, editor } = {}) {
   const candidates = [];
+  if (editor) {
+    candidates.push({ command: editor, shell: true });
+  }
   if (env && env.EDITOR) {
     candidates.push({ command: env.EDITOR, shell: true });
   }

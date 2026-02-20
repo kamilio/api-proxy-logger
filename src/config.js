@@ -14,6 +14,7 @@ export const DEFAULT_CONFIG = {
   default_alias: null,
   aliases: {},
   max_logs: 100,
+  editor: null,
 };
 
 let configCache = null;

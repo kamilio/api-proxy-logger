@@ -13,6 +13,7 @@ import { getEditorCandidates } from './editor.js';
 import { resolveAliasConfig } from './aliases.js';
 import { addAliasToConfig, removeAliasFromConfig, setDefaultAliasInConfig, setConfigValue } from './config-aliases.js';
 import { buildServerConfig } from './server-config.js';
+import { loadConfig } from './config.js';
 
 async function main() {
   const { flags, positionals } = parseArgs(process.argv.slice(2));
@@ -215,9 +216,9 @@ function runConfigCommand(subcommand, args) {
 }
 
 function runConfigEdit() {
-  loadConfig();
+  const config = loadConfig();
   const configPath = getConfigEditPath();
-  const candidates = getEditorCandidates();
+  const candidates = getEditorCandidates({ editor: config.editor });
 
   for (const candidate of candidates) {
     const result = spawnSync(candidate.command, [configPath], {

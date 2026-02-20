@@ -31,4 +31,28 @@ describe('getEditorCandidates', () => {
     });
     assert.deepStrictEqual(candidates, []);
   });
+
+  it('uses config editor as first candidate', () => {
+    const candidates = getEditorCandidates({
+      env: { EDITOR: 'vim' },
+      platform: 'darwin',
+      editor: 'code',
+    });
+    assert.deepStrictEqual(candidates, [
+      { command: 'code', shell: true },
+      { command: 'vim', shell: true },
+      { command: 'open', shell: false },
+    ]);
+  });
+
+  it('uses config editor even when no EDITOR env or platform fallback', () => {
+    const candidates = getEditorCandidates({
+      env: {},
+      platform: 'win32',
+      editor: 'notepad++',
+    });
+    assert.deepStrictEqual(candidates, [
+      { command: 'notepad++', shell: true },
+    ]);
+  });
 });

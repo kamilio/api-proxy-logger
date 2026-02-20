@@ -19,6 +19,10 @@ hide_from_viewer:
   - /v1/models
   - /cdn-cgi/**
 
+# Editor command for 'config edit' (e.g. "code", "vim", "nano")
+# Falls back to $EDITOR env var, then platform default
+# editor: code
+
 # Default alias for root proxy requests (optional)
 default_alias: null
 
