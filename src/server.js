@@ -4,6 +4,7 @@ import { parseAliasPath, resolveAliasConfig } from './aliases.js';
 import { loadConfig, shouldIgnoreRoute } from './config.js';
 import { createViewerRouter } from './routes/viewer.js';
 import { sendJsonError } from './response.js';
+import { resolveSnapshotDir } from './snapshot.js';
 
 const URL_OVERRIDE_HEADER = 'llm-debugger-url';
 const CACHE_OVERRIDE_HEADER = 'llm-debugger-cache';
@@ -126,6 +127,8 @@ export function createServer(config, { onListen } = {}) {
       provider: providerLabel,
       proxyHeaders,
       loggingEnabled: runtimeConfig.enabled !== false,
+      cacheEnabled: overrides.cacheOverride ?? runtimeConfig.cache ?? false,
+      snapshotDir: resolveSnapshotDir(runtimeConfig),
     };
 
     try {

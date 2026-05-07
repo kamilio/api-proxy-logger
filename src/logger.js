@@ -110,6 +110,11 @@ export async function logRequest(outputDir, data) {
     },
   };
 
+  if (data.cacheKey !== undefined || data.cacheHit !== undefined) {
+    logEntry.cache_key = data.cacheKey ?? null;
+    logEntry.cache_hit = data.cacheHit === true;
+  }
+
   const filename = generateFilename();
   const filepath = join(providerDir, filename);
   const content = yaml.dump(logEntry, {

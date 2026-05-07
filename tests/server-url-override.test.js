@@ -94,7 +94,7 @@ describe('server URL header override', () => {
           authorization: 'Bearer token',
           'content-type': 'application/json',
           'llm-debugger-url': upstream.url,
-          'llm-debugger-cache': 'true',
+          'llm-debugger-cache': 'false',
         },
         body: JSON.stringify({ model: 'test' }),
       }
