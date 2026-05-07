@@ -31,6 +31,27 @@ View logged requests at `http://localhost:8000/__viewer__`
 | `/__proxy__/<alias>/*` | Forwards requests to configured alias |
 | `/__viewer__` | Web UI to inspect logged requests |
 
+### Per-request overrides
+
+Two headers let you override proxy behavior for a single request without restarting:
+
+| Header                            | Effect                                              |
+| --------------------------------- | --------------------------------------------------- |
+| `llm-debugger-url: <url>`         | Override the upstream target URL (full URL only)    |
+| `llm-debugger-cache: true\|false` | Force snapshot cache on or off for this request     |
+
+Both headers are stripped before forwarding and never written into snapshots.
+
+Example:
+
+```bash
+curl http://localhost:8000/v1/chat/completions \
+  -H 'Authorization: Bearer sk-xxx' \
+  -H 'llm-debugger-url: https://api.openai.com' \
+  -H 'Content-Type: application/json' \
+  -d '{"model":"gpt-4o","messages":[{"role":"user","content":"hi"}]}'
+```
+
 ## Aliases
 
 Configure aliases to proxy to multiple APIs without restarting. When aliases are configured, `--target` becomes optional.
@@ -96,6 +117,21 @@ aliases:
 ```
 
 Env vars defined in `env` are loaded at startup with lowest precedence — real environment variables and `.env` files take priority.
+
+### Snapshot cache
+
+When the cache is on, the proxy records each upstream response to a JSON file under `<cwd>/.snapshots/` and replays it on a subsequent matching request. The cache key is `sha256(method + url + body)` truncated to 12 hex chars.
+
+Snapshots are organised as `<snapshot_dir>/<sanitized-host-and-path>/<model>/<hash>.json`. Model falls back to `default` when the request has no `model` field.
+
+Toggle defaults via config:
+
+```bash
+llm-debugger config set cache true
+llm-debugger config set snapshot_dir /path/to/snapshots
+```
+
+Override per request with the `llm-debugger-cache` header. Browse snapshots in the viewer at `http://localhost:8000/__viewer__/snapshots`.
 
 ### Config Commands
 
