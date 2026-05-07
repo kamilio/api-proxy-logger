@@ -112,6 +112,8 @@ describe('config loading', () => {
     assert.ok(Array.isArray(config.ignore_routes));
     assert.ok(Array.isArray(config.hide_from_viewer));
     assert.ok(config.aliases && typeof config.aliases === 'object');
+    assert.strictEqual(config.cache, false);
+    assert.strictEqual(config.snapshot_dir, null);
   });
 
   it('reloads config when file changes', async () => {
@@ -131,6 +133,8 @@ describe('config loading', () => {
     const { loadConfig } = await import(`../src/config.js?t=${Date.now()}`);
     let config = loadConfig();
     assert.strictEqual(config.default_alias, 'openai');
+    assert.strictEqual(config.cache, false);
+    assert.strictEqual(config.snapshot_dir, null);
 
     writeFileSync(
       configPath,

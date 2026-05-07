@@ -105,7 +105,7 @@ export function setDefaultAliasInConfig(aliasName, configPath = getConfigEditPat
   return { configPath, alias: aliasName };
 }
 
-const ALLOWED_CONFIG_KEYS = ['enabled', 'default_alias', 'max_logs'];
+const ALLOWED_CONFIG_KEYS = ['enabled', 'default_alias', 'max_logs', 'cache', 'snapshot_dir'];
 
 function parseValue(value) {
   if (value === true || value === false) return value;

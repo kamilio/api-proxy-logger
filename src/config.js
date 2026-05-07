@@ -14,6 +14,8 @@ export const DEFAULT_CONFIG = {
   default_alias: null,
   aliases: {},
   max_logs: 100,
+  cache: false,
+  snapshot_dir: null,
   editor: null,
 };
 

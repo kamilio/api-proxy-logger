@@ -4,7 +4,12 @@ import { mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import yaml from 'js-yaml';
-import { addAliasToConfig, removeAliasFromConfig, setDefaultAliasInConfig } from '../src/config-aliases.js';
+import {
+  addAliasToConfig,
+  removeAliasFromConfig,
+  setConfigValue,
+  setDefaultAliasInConfig,
+} from '../src/config-aliases.js';
 
 describe('addAliasToConfig', () => {
   let testDir;
@@ -109,5 +114,69 @@ describe('setDefaultAliasInConfig', () => {
       () => setDefaultAliasInConfig('missing', configPath),
       /not found/
     );
+  });
+});
+
+describe('setConfigValue', () => {
+  let testDir;
+
+  afterEach(() => {
+    if (testDir) {
+      rmSync(testDir, { recursive: true, force: true });
+    }
+  });
+
+  it('sets cache true as a boolean', () => {
+    testDir = join(tmpdir(), `llm-debugger-config-value-${Date.now()}`);
+    mkdirSync(testDir, { recursive: true });
+    const configPath = join(testDir, 'config.yaml');
+
+    const result = setConfigValue('cache', 'true', configPath);
+    const content = readFileSync(configPath, 'utf-8');
+    const parsed = yaml.load(content);
+
+    assert.strictEqual(result.key, 'cache');
+    assert.strictEqual(result.value, true);
+    assert.strictEqual(parsed.cache, true);
+  });
+
+  it('sets snapshot_dir as a raw string path', () => {
+    testDir = join(tmpdir(), `llm-debugger-config-value-${Date.now()}`);
+    mkdirSync(testDir, { recursive: true });
+    const configPath = join(testDir, 'config.yaml');
+
+    const result = setConfigValue('snapshot_dir', '/tmp/snaps', configPath);
+    const content = readFileSync(configPath, 'utf-8');
+    const parsed = yaml.load(content);
+
+    assert.strictEqual(result.key, 'snapshot_dir');
+    assert.strictEqual(result.value, '/tmp/snaps');
+    assert.strictEqual(parsed.snapshot_dir, '/tmp/snaps');
+  });
+
+  it('keeps unrecognised cache strings unchanged', () => {
+    testDir = join(tmpdir(), `llm-debugger-config-value-${Date.now()}`);
+    mkdirSync(testDir, { recursive: true });
+    const configPath = join(testDir, 'config.yaml');
+
+    const result = setConfigValue('cache', 'yes', configPath);
+    const content = readFileSync(configPath, 'utf-8');
+    const parsed = yaml.load(content);
+
+    assert.strictEqual(result.value, 'yes');
+    assert.strictEqual(parsed.cache, 'yes');
+  });
+
+  it('sets empty snapshot_dir to null', () => {
+    testDir = join(tmpdir(), `llm-debugger-config-value-${Date.now()}`);
+    mkdirSync(testDir, { recursive: true });
+    const configPath = join(testDir, 'config.yaml');
+
+    const result = setConfigValue('snapshot_dir', '', configPath);
+    const content = readFileSync(configPath, 'utf-8');
+    const parsed = yaml.load(content);
+
+    assert.strictEqual(result.value, null);
+    assert.strictEqual(parsed.snapshot_dir, null);
   });
 });

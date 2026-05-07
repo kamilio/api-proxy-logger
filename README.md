@@ -105,8 +105,10 @@ npx llm-debugger@latest config edit              # Open config in editor
 npx llm-debugger@latest config add-alias <name> <url>    # Add an alias
 npx llm-debugger@latest config remove-alias <name>       # Remove an alias
 npx llm-debugger@latest config set-default-alias <name>  # Set default alias for root requests
-npx llm-debugger@latest config set <key> <value>         # Set a config value (enabled, max_logs)
+npx llm-debugger@latest config set <key> <value>         # Set enabled, default_alias, max_logs, cache, snapshot_dir
 ```
+
+Only `true` and `false` strings are coerced to booleans; other strings such as `yes` are stored unchanged.
 
 ## License
 
