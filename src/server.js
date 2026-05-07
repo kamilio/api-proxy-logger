@@ -5,6 +5,36 @@ import { loadConfig, shouldIgnoreRoute } from './config.js';
 import { createViewerRouter } from './routes/viewer.js';
 import { sendJsonError } from './response.js';
 
+const URL_OVERRIDE_HEADER = 'llm-debugger-url';
+const CACHE_OVERRIDE_HEADER = 'llm-debugger-cache';
+
+export function resolveOverrides(req) {
+  const headers = req?.headers || {};
+  const urlValue = getHeaderValue(headers, URL_OVERRIDE_HEADER);
+  const cacheValue = getHeaderValue(headers, CACHE_OVERRIDE_HEADER);
+  const cleanedHeaders = Object.fromEntries(
+    Object.entries(headers).filter(([key]) => {
+      const normalizedKey = key.toLowerCase();
+      return normalizedKey !== URL_OVERRIDE_HEADER && normalizedKey !== CACHE_OVERRIDE_HEADER;
+    })
+  );
+
+  return {
+    urlOverride: resolveUrlOverride(urlValue),
+    cacheOverride: resolveCacheOverride(cacheValue),
+    cleanedHeaders,
+  };
+}
+
+function getHeaderValue(headers, headerName) {
+  if (Object.prototype.hasOwnProperty.call(headers, headerName)) {
+    return headers[headerName];
+  }
+
+  const matchingEntry = Object.entries(headers).find(([key]) => key.toLowerCase() === headerName);
+  return matchingEntry?.[1];
+}
+
 export function createServer(config, { onListen } = {}) {
   const app = express();
 
@@ -104,6 +134,44 @@ export function createServer(config, { onListen } = {}) {
   });
 
   return server;
+}
+
+function resolveUrlOverride(value) {
+  if (value === undefined) return null;
+  if (typeof value !== 'string') {
+    throwInvalidUrlOverride();
+  }
+
+  let parsed;
+  try {
+    parsed = new URL(value);
+  } catch {
+    throwInvalidUrlOverride();
+  }
+
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    throwInvalidUrlOverride();
+  }
+  return value;
+}
+
+function resolveCacheOverride(value) {
+  if (typeof value !== 'string') return null;
+
+  const normalized = value.trim().toLowerCase();
+  if (normalized === 'true') return true;
+  if (normalized === 'false') return false;
+  return null;
+}
+
+function throwInvalidUrlOverride() {
+  throw {
+    status: 400,
+    body: {
+      error: 'Invalid override URL',
+      message: 'llm-debugger-url must be a valid http or https URL',
+    },
+  };
 }
 
 function resolveRootTarget(config, aliases, defaultAlias) {
