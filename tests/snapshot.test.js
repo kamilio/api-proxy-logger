@@ -143,6 +143,7 @@ describe('snapshot module', () => {
     await saveSnapshot(snapshotPath, {
       key,
       request: {
+        method: 'POST',
         body: {
           model: 'GPT-4.1',
           messages: [{ role: 'user', content: 'Hello from a snapshot prompt that should preview' }],
@@ -161,6 +162,7 @@ describe('snapshot module', () => {
         host: 'api-example-test-v1-chat',
         path: snapshotPath,
         model: 'gpt-4-1',
+        method: 'POST',
         status: 201,
         recordedAt: '2026-05-07T12:00:00.000Z',
         promptPreview: 'Hello from a snapshot prompt that should preview',
@@ -193,6 +195,7 @@ describe('snapshot module', () => {
         host: 'host-a',
         path: secondPath,
         model: 'entry-model',
+        method: 'UNKNOWN',
         status: 204,
         recordedAt: '2026-05-07T13:00:00.000Z',
         promptPreview: 'Second prompt',
@@ -202,6 +205,7 @@ describe('snapshot module', () => {
         host: 'host-b',
         path: firstPath,
         model: 'model-b',
+        method: 'UNKNOWN',
         status: 202,
         recordedAt: '2026-05-07T14:00:00.000Z',
         promptPreview: 'First prompt',

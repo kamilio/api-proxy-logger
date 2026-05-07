@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLM Debugger Snapshot</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Sora:wght@500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            color-scheme: light;
+            --bg: #f7f8fa;
+            --bg-strong: #eef1f4;
+            --panel: #ffffff;
+            --panel-alt: #f6f8fa;
+            --ink: #1d1f23;
+            --muted: #5d6670;
+            --accent: #10a37f;
+            --accent-strong: #0f8a6b;
+            --stroke: #e2e6ea;
+            --success: #1a7f4a;
+            --danger: #b3261e;
+            --code-bg: #f3f5f7;
+            --shadow: 0 20px 50px rgba(15, 23, 42, 0.08);
+            --shadow-soft: 0 10px 26px rgba(15, 23, 42, 0.08);
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            font-family: "IBM Plex Sans", "Helvetica Neue", sans-serif;
+            background:
+                radial-gradient(1200px 520px at 12% -10%, rgba(16, 163, 127, 0.12), transparent 60%),
+                radial-gradient(1000px 500px at 95% -20%, rgba(15, 23, 42, 0.08), transparent 60%),
+                linear-gradient(180deg, var(--bg) 0%, #f1f3f6 100%);
+            color: var(--ink);
+        }
+
+        .page { min-height: 100vh; padding: 32px 18px 64px; }
+        .shell { max-width: 1180px; margin: 0 auto; display: grid; gap: 22px; }
+
+        .back {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--accent-strong);
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .back::before { content: "\2190"; }
+
+        .header {
+            display: grid;
+            gap: 16px;
+            padding: 24px;
+            border-radius: 22px;
+            border: 1px solid var(--stroke);
+            background: var(--panel);
+            box-shadow: var(--shadow);
+        }
+
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            align-items: flex-start;
+        }
+
+        .title {
+            font-family: "Sora", "Helvetica Neue", sans-serif;
+            font-size: clamp(1.4rem, 1.6vw + 1rem, 2rem);
+            margin: 0;
+            overflow-wrap: anywhere;
+        }
+
+        .subtitle {
+            margin: 6px 0 0;
+            color: var(--muted);
+            font-family: "IBM Plex Mono", monospace;
+            overflow-wrap: anywhere;
+        }
+
+        .summary {
+            display: grid;
+            grid-template-columns: repeat(6, minmax(120px, 1fr));
+            gap: 10px;
+        }
+
+        .metric {
+            padding: 12px 14px;
+            border-radius: 14px;
+            border: 1px solid var(--stroke);
+            background: var(--panel-alt);
+            min-width: 0;
+        }
+
+        .metric .label {
+            display: block;
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--muted);
+            margin-bottom: 6px;
+            font-weight: 700;
+        }
+
+        .metric .value {
+            display: block;
+            font-weight: 600;
+            overflow-wrap: anywhere;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .value.ok { color: var(--success); }
+        .value.bad { color: var(--danger); }
+
+        .btn {
+            border: none;
+            border-radius: 14px;
+            padding: 10px 14px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            background: var(--accent);
+            color: #fff;
+            cursor: pointer;
+            font-family: inherit;
+            transition: transform 180ms ease, box-shadow 180ms ease;
+            box-shadow: 0 10px 24px rgba(16, 163, 127, 0.28);
+            min-height: 40px;
+        }
+
+        .btn.danger {
+            background: var(--danger);
+            box-shadow: 0 10px 24px rgba(179, 38, 30, 0.28);
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 16px 32px rgba(15, 23, 42, 0.18);
+        }
+
+        .json-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 18px;
+        }
+
+        .panel {
+            display: grid;
+            grid-template-rows: auto 1fr;
+            min-width: 0;
+            border-radius: 18px;
+            border: 1px solid var(--stroke);
+            background: var(--panel);
+            overflow: hidden;
+            box-shadow: var(--shadow-soft);
+        }
+
+        .panel-header {
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--stroke);
+            background: var(--panel-alt);
+        }
+
+        .panel-header h2 {
+            margin: 0;
+            font-size: 0.95rem;
+        }
+
+        pre {
+            margin: 0;
+            padding: 16px;
+            min-height: 360px;
+            overflow: auto;
+            background: var(--code-bg);
+            color: var(--ink);
+            font-family: "IBM Plex Mono", monospace;
+            font-size: 0.82rem;
+            line-height: 1.55;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+        }
+
+        @media (max-width: 960px) {
+            .summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .json-grid { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 620px) {
+            .header-top { display: grid; }
+            .summary { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <div class="shell">
+            <a class="back" href="/__viewer__/snapshots">Back to snapshots</a>
+
+            <section class="header">
+                <div class="header-top">
+                    <div>
+                        <h1 class="title"><%= detail.key %></h1>
+                        <p class="subtitle"><%= detail.host %> / <%= detail.model %></p>
+                    </div>
+                    <button class="btn danger" id="delete-btn" type="button" onclick="deleteSnapshotEntry(this)">Delete</button>
+                </div>
+                <div class="summary">
+                    <div class="metric">
+                        <span class="label">Host</span>
+                        <span class="value"><%= detail.host %></span>
+                    </div>
+                    <div class="metric">
+                        <span class="label">Model</span>
+                        <span class="value"><%= detail.model %></span>
+                    </div>
+                    <div class="metric">
+                        <span class="label">Recorded</span>
+                        <span class="value"><%= detail.recordedAt %></span>
+                    </div>
+                    <div class="metric">
+                        <span class="label">Status</span>
+                        <span class="value <%= detail.statusClass %>"><%= detail.status %></span>
+                    </div>
+                    <div class="metric">
+                        <span class="label">Method</span>
+                        <span class="value"><%= detail.method %></span>
+                    </div>
+                    <div class="metric">
+                        <span class="label">Path</span>
+                        <span class="value"><%= detail.path %></span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="json-grid">
+                <article class="panel">
+                    <div class="panel-header"><h2>Request</h2></div>
+                    <pre><%= detail.requestJson %></pre>
+                </article>
+                <article class="panel">
+                    <div class="panel-header"><h2>Response</h2></div>
+                    <pre><%= detail.responseJson %></pre>
+                </article>
+            </section>
+        </div>
+    </div>
+    <script>
+        async function deleteSnapshotEntry(btn) {
+            if (!confirm('Delete this snapshot? This cannot be undone.')) return;
+
+            btn.disabled = true;
+            btn.textContent = 'Deleting...';
+
+            try {
+                const response = await fetch(`/__viewer__/snapshots/${encodeURIComponent('<%= host %>')}/${encodeURIComponent('<%= model %>')}/${encodeURIComponent('<%= key %>')}`, { method: 'DELETE' });
+                if (response.ok) {
+                    window.location.href = '/__viewer__/snapshots';
+                    return;
+                }
+                const data = await response.json().catch(() => ({}));
+                alert('Failed to delete: ' + (data.error || 'Unknown error'));
+                btn.disabled = false;
+                btn.textContent = 'Delete';
+            } catch (error) {
+                alert('Failed to delete: ' + error.message);
+                btn.disabled = false;
+                btn.textContent = 'Delete';
+            }
+        }
+    </script>
+</body>
+</html>

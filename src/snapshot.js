@@ -210,10 +210,15 @@ function buildSnapshotSummary(file, entry) {
     host: file.host,
     path: file.path,
     model: extractSummaryModel(entry, file.model),
+    method: extractSummaryMethod(entry),
     status: extractSummaryStatus(entry),
     recordedAt: entry.recordedAt ?? entry.metadata?.recordedAt,
     promptPreview: extractPromptPreview(entry),
   };
+}
+
+function extractSummaryMethod(entry) {
+  return entry.request?.method ?? entry.method ?? 'UNKNOWN';
 }
 
 function extractSummaryModel(entry, fallback) {
