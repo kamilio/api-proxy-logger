@@ -51,13 +51,20 @@ export function createServer(config, { onListen } = {}) {
 
   // Proxy requests to configured base target
   const handleProxy = async (req, res) => {
+    let overrides;
+    try {
+      overrides = resolveOverrides(req);
+    } catch (error) {
+      if (error?.status === 400 && error.body) {
+        res.status(400).json(error.body);
+        return;
+      }
+      throw error;
+    }
+
+    req.headers = overrides.cleanedHeaders;
     const proxyPath = getProxyPath(req);
     const proxyUrl = new URL(proxyPath, 'http://proxy.local');
-    const aliasInfo = parseAliasPath(proxyUrl.pathname);
-    if (proxyUrl.pathname.startsWith('/__proxy__/') && !aliasInfo) {
-      res.status(404).json({ error: 'Unknown alias' });
-      return;
-    }
 
     const runtimeConfig = loadConfig();
     const runtimeAliases = runtimeConfig.aliases || {};
@@ -69,28 +76,41 @@ export function createServer(config, { onListen } = {}) {
     let proxyHeaders = config.proxyHeaders || null;
     let providerLabel = config.provider;
 
-    if (aliasInfo) {
-      const aliasConfig = resolveAliasConfig(runtimeAliases, aliasInfo.alias);
-      if (!aliasConfig) {
+    if (overrides.urlOverride) {
+      new URL(overrides.urlOverride);
+      targetBaseUrl = overrides.urlOverride;
+      proxyHeaders = null;
+      providerLabel = 'header-override';
+    } else {
+      const aliasInfo = parseAliasPath(proxyUrl.pathname);
+      if (proxyUrl.pathname.startsWith('/__proxy__/') && !aliasInfo) {
         res.status(404).json({ error: 'Unknown alias' });
         return;
       }
-      proxyPathname = aliasInfo.path;
-      targetBaseUrl = aliasConfig.url;
-      targetPath = `${aliasInfo.path}${proxyUrl.search}${proxyUrl.hash}`;
-      proxyHeaders = aliasConfig.headers;
-      providerLabel = aliasInfo.alias;
-    } else {
-      const resolved = resolveRootTarget(config, runtimeAliases, runtimeDefaultAlias);
-      targetBaseUrl = resolved.targetBaseUrl;
-      providerLabel = resolved.providerLabel;
-      proxyHeaders = resolved.proxyHeaders;
-      if (!targetBaseUrl) {
-        res.status(404).json({
-          error: 'No target configured',
-          message: 'Use /__proxy__/<alias> or configure --target',
-        });
-        return;
+
+      if (aliasInfo) {
+        const aliasConfig = resolveAliasConfig(runtimeAliases, aliasInfo.alias);
+        if (!aliasConfig) {
+          res.status(404).json({ error: 'Unknown alias' });
+          return;
+        }
+        proxyPathname = aliasInfo.path;
+        targetBaseUrl = aliasConfig.url;
+        targetPath = `${aliasInfo.path}${proxyUrl.search}${proxyUrl.hash}`;
+        proxyHeaders = aliasConfig.headers;
+        providerLabel = aliasInfo.alias;
+      } else {
+        const resolved = resolveRootTarget(config, runtimeAliases, runtimeDefaultAlias);
+        targetBaseUrl = resolved.targetBaseUrl;
+        providerLabel = resolved.providerLabel;
+        proxyHeaders = resolved.proxyHeaders;
+        if (!targetBaseUrl) {
+          res.status(404).json({
+            error: 'No target configured',
+            message: 'Use /__proxy__/<alias> or configure --target',
+          });
+          return;
+        }
       }
     }
 
