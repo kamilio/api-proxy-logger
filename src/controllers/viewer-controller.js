@@ -20,6 +20,7 @@ import {
 import { logToHar } from '../services/har-service.js';
 import { logToPython } from '../services/python-service.js';
 import { pinLog, unpinLog, isPinned, getPinnedSet } from '../pinned.js';
+import { sanitizeForFs } from '../snapshot.js';
 
 export function createViewerController(config) {
   return {
@@ -143,7 +144,8 @@ export function createViewerController(config) {
 
         const backLink = buildBackLink(req.query);
         const preview = buildPreviewModel(log);
-        const html = await renderViewerDetail(log, backLink, preview);
+        const snapshotMeta = buildLogSnapshotMeta(log);
+        const html = await renderViewerDetail(log, backLink, preview, snapshotMeta);
         res.type('html').send(html);
       } catch (error) {
         console.error('Viewer detail error:', error.message);
@@ -365,6 +367,50 @@ export function createViewerController(config) {
       }
     },
   };
+}
+
+function buildLogSnapshotMeta(log) {
+  if (!log || typeof log.cache_key !== 'string' || log.cache_key.length === 0) {
+    return { snapshotHref: null, snapshotState: null };
+  }
+
+  try {
+    const parsedUrl = new URL(log.request.url);
+    const host = sanitizeForFs(`${parsedUrl.host}${parsedUrl.pathname}`);
+    const model = sanitizeForFs(extractSnapshotModel(log.request.body));
+    const key = log.cache_key;
+
+    if (!host || !model) {
+      return { snapshotHref: null, snapshotState: null };
+    }
+
+    return {
+      snapshotHref: `/__viewer__/snapshots/${encodeURIComponent(host)}/${encodeURIComponent(model)}/${encodeURIComponent(key)}`,
+      snapshotState: log.cache_hit === true ? 'hit' : 'recorded',
+    };
+  } catch {
+    return { snapshotHref: null, snapshotState: null };
+  }
+}
+
+function extractSnapshotModel(body) {
+  const parsed = parseRequestBody(body);
+  if (parsed && typeof parsed === 'object' && !Array.isArray(parsed) && typeof parsed.model === 'string') {
+    return parsed.model;
+  }
+  return 'default';
+}
+
+function parseRequestBody(body) {
+  if (typeof body !== 'string') {
+    return body;
+  }
+
+  try {
+    return JSON.parse(body);
+  } catch {
+    return body;
+  }
 }
 
 function buildAliasMaps(aliases) {

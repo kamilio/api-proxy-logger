@@ -142,6 +142,34 @@
             font-variant-numeric: tabular-nums;
         }
 
+        .metric .value.snapshot {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .snapshot-key {
+            font-family: "IBM Plex Mono", monospace;
+            overflow-wrap: anywhere;
+        }
+
+        .snapshot-state {
+            color: var(--muted);
+            font-weight: 500;
+        }
+
+        .snapshot-link {
+            color: var(--accent-strong);
+            font-size: 0.85rem;
+            font-weight: 700;
+            text-decoration: none;
+        }
+
+        .snapshot-link:hover {
+            text-decoration: underline;
+        }
+
         .value.ok { color: var(--success); }
         .value.bad { color: var(--danger); }
 
@@ -857,6 +885,16 @@
                         <span class="label">Streaming</span>
                         <span class="value"><%= log.response.is_streaming ? 'Yes' : 'No' %></span>
                     </div>
+                    <% if (snapshotHref) { %>
+                        <div class="metric">
+                            <span class="label">Snapshot</span>
+                            <span class="value snapshot">
+                                <span class="snapshot-key"><%= log.cache_key %></span>
+                                <span class="snapshot-state">(<%= snapshotState === 'hit' ? 'cache hit' : 'recorded' %>)</span>
+                                <a class="snapshot-link" href="<%= snapshotHref %>">Open snapshot</a>
+                            </span>
+                        </div>
+                    <% } %>
                 </div>
             </section>
 

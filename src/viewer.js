@@ -106,12 +106,14 @@ export async function renderViewer({
   });
 }
 
-export async function renderViewerDetail(log, backLink, preview) {
+export async function renderViewerDetail(log, backLink, preview, snapshotMeta = {}) {
   const template = await getDetailTemplate();
   return ejs.render(template, {
     log,
     backLink,
     preview,
+    snapshotHref: snapshotMeta.snapshotHref || null,
+    snapshotState: snapshotMeta.snapshotState || null,
   });
 }
 
