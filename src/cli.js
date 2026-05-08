@@ -88,7 +88,7 @@ Usage:
 
 Options:
   --proxy-host <host>  Proxy host (default: localhost)
-  --port <port>        Proxy port or range (default: 8000-8010)
+  --port <port>        Proxy port or range (default: 8000-8100)
   --proxy-port <port>  Proxy port (alias of --port)
   --target <url|alias> Base target URL or alias name for proxying
   --target-port <port> Override target URL port

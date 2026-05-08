@@ -90,9 +90,75 @@ curl http://localhost:8000/__proxy__/openrouter/v1/chat/completions
 curl http://localhost:8000/__proxy__/poe/v1/chat/completions
 ```
 
+## Programmatic API
+
+Run the proxy from your own scripts. No config file is read or written — pass everything as options.
+
+```js
+import { startProxy } from 'llm-debugger';
+
+const proxy = await startProxy({
+  target: 'https://api.openai.com',
+});
+
+console.log(proxy.url);  // http://localhost:8000
+
+// ...point your client at proxy.url and run your code...
+
+await proxy.stop();
+```
+
+With aliases:
+
+```js
+const proxy = await startProxy({
+  aliases: {
+    openai:    { url: 'https://api.openai.com',    headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}` } },
+    anthropic: { url: 'https://api.anthropic.com', headers: { 'x-api-key': process.env.ANTHROPIC_API_KEY } },
+  },
+  defaultAlias: 'openai',
+  cache: true,
+});
+
+// proxy.url + '/__proxy__/anthropic/v1/messages' routes to Anthropic
+```
+
+### Options
+
+| Option           | Default                       | Description                                                       |
+| ---------------- | ----------------------------- | ----------------------------------------------------------------- |
+| `target`         | —                             | Upstream URL, or an alias name from `aliases`.                    |
+| `aliases`        | `{}`                          | Map of `{ name: { url, headers } }` for multi-upstream routing.   |
+| `defaultAlias`   | `null`                        | Alias to use for root-path requests when `target` isn't set.      |
+| `host`           | `localhost`                   | Bind host.                                                        |
+| `port`           | `8000-8100`                   | Single port or range; first free port wins.                       |
+| `cache`          | `false`                       | Enable snapshot replay cache.                                     |
+| `snapshotDir`    | `<cwd>/.snapshots`            | Where snapshots are stored.                                       |
+| `ignoreRoutes`   | `[]`                          | Glob patterns for paths to skip (no proxy, no log).               |
+| `hideFromViewer` | `[]`                          | Glob patterns for paths to log but hide from the viewer UI.       |
+| `enabled`        | `true`                        | Toggle request logging (proxy still works when off).              |
+| `maxLogs`        | `100`                         | Log retention before rotation; `0` disables rotation.             |
+| `logsDir`        | `<cwd>/.llm-debugger/logs`    | Where logs are written.                                           |
+| `cwd`            | `process.cwd()`               | Used as the base for `logsDir` and `snapshotDir` defaults.        |
+
+At least one of `target`, `aliases`, or `defaultAlias` must resolve to a routable upstream — otherwise `startProxy` throws.
+
+### Return value
+
+```ts
+{
+  url: string;          // e.g. "http://localhost:8000"
+  port: number;
+  host: string;
+  configPath: string;   // resolved config file path
+  server: http.Server;  // raw Node server, for advanced use
+  stop: () => Promise<void>;
+}
+```
+
 ## Configuration
 
-Config lives at `~/.llm-debugger/config.yaml` and logs at `~/.llm-debugger/logs`. Override the base directory with:
+When running via the CLI, config lives at `~/.llm-debugger/config.yaml` and logs at `~/.llm-debugger/logs`. Override the base directory with:
 
 - `LLM_DEBUGGER_HOME` - Base directory
 

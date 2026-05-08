@@ -8,7 +8,7 @@ export async function buildServerConfig() {
 
   const proxyHost = process.env.PROXY_HOST || 'localhost';
 
-  const proxyPortSpec = process.env.PROXY_PORT || '8000-8010';
+  const proxyPortSpec = process.env.PROXY_PORT || '8000-8100';
   const portSpec = parsePortSpec(proxyPortSpec);
   const portNumber = await findAvailablePort(proxyHost, portSpec);
 

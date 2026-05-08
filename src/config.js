@@ -21,19 +21,33 @@ export const DEFAULT_CONFIG = {
 
 let configCache = null;
 let cachedMtimeMs = null;
+let runtimeOverride = null;
 const TEMPLATE_CONFIG_PATH = resolve(
   dirname(fileURLToPath(import.meta.url)),
   '..',
   'config.yaml'
 );
 
+export function setRuntimeConfig(config) {
+  if (config === null || config === undefined) {
+    runtimeOverride = null;
+    return;
+  }
+  runtimeOverride = {
+    ...DEFAULT_CONFIG,
+    ...config,
+    env: { ...DEFAULT_CONFIG.env, ...(config.env || {}) },
+    aliases: { ...DEFAULT_CONFIG.aliases, ...(config.aliases || {}) },
+  };
+}
+
 export function loadConfig({ forceReload = false } = {}) {
-  const homeConfigPath = getHomeConfigPath();
-  ensureHomeConfig(homeConfigPath);
+  if (runtimeOverride) return runtimeOverride;
   let configPath = getConfigPath();
   if (resolve(configPath) === TEMPLATE_CONFIG_PATH) {
-    configPath = homeConfigPath;
+    configPath = getHomeConfigPath();
   }
+  ensureHomeConfig(configPath);
   if (!forceReload && configCache && cachedPath === configPath) {
     const currentMtime = getConfigMtime(configPath);
     if (currentMtime !== null && cachedMtimeMs === currentMtime) {
