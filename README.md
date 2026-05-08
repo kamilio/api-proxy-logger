@@ -76,7 +76,7 @@ await proxy.stop();
 | `target`         | —                          | Upstream URL.                                               |
 | `host`           | `localhost`                | Bind host.                                                  |
 | `port`           | `8000-8100`                | Single port or range; first free port wins.                 |
-| `cache`          | `false`                    | Enable snapshot replay cache.                               |
+| `cache`          | `true`                     | Enable snapshot replay cache.                               |
 | `snapshotDir`    | `<cwd>/.snapshots`         | Where snapshots are stored.                                 |
 | `ignoreRoutes`   | `[]`                       | Glob patterns for paths to skip (no proxy, no log).         |
 | `hideFromViewer` | `[]`                       | Glob patterns for paths to log but hide from the viewer UI. |

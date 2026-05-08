@@ -17,7 +17,7 @@ export async function startProxy(options = {}) {
     default_alias: options.defaultAlias ?? null,
     aliases: options.aliases ?? {},
     max_logs: options.maxLogs ?? 100,
-    cache: options.cache ?? false,
+    cache: options.cache ?? true,
     snapshot_dir: options.snapshotDir ? resolve(options.snapshotDir) : null,
     editor: null,
   };
