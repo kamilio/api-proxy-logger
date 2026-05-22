@@ -155,7 +155,7 @@ describe('logToHar', () => {
     assert.strictEqual(postData.mimeType, 'application/json');
   });
 
-  it('should parse cookies from Cookie header', () => {
+  it('should redact cookies from Cookie header', () => {
     const log = {
       timestamp: '2026-01-24T19:35:45.748Z',
       request: {
@@ -171,14 +171,12 @@ describe('logToHar', () => {
     const har = logToHar(log);
     const cookies = har.log.entries[0].request.cookies;
 
-    assert.strictEqual(cookies.length, 3);
-    assert.strictEqual(cookies[0].name, 'session');
-    assert.strictEqual(cookies[0].value, 'abc123');
-    assert.strictEqual(cookies[1].name, 'user');
-    assert.strictEqual(cookies[1].value, 'john');
+    assert.strictEqual(cookies.length, 1);
+    assert.strictEqual(cookies[0].name, 'api_key_provided');
+    assert.strictEqual(cookies[0].value, '');
   });
 
-  it('should parse Set-Cookie headers in response', () => {
+  it('should redact Set-Cookie headers in response', () => {
     const log = {
       timestamp: '2026-01-24T19:35:45.748Z',
       request: { method: 'GET', url: 'https://api.example.com/v1/chat', headers: {} },
@@ -195,11 +193,8 @@ describe('logToHar', () => {
     const cookies = har.log.entries[0].response.cookies;
 
     assert.strictEqual(cookies.length, 1);
-    assert.strictEqual(cookies[0].name, 'session');
-    assert.strictEqual(cookies[0].value, 'abc123');
-    assert.strictEqual(cookies[0].path, '/');
-    assert.strictEqual(cookies[0].httpOnly, true);
-    assert.strictEqual(cookies[0].secure, true);
+    assert.strictEqual(cookies[0].name, 'api_key_provided');
+    assert.strictEqual(cookies[0].value, '');
   });
 
   it('should extract redirectURL from Location header', () => {

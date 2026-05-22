@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { readdir, readFile, unlink, writeFile, mkdir } from 'node:fs/promises';
 import { basename, dirname, join } from 'node:path';
+import yaml from 'js-yaml';
 
 const SNAPSHOT_KEY_LENGTH = 12;
 const PROMPT_PREVIEW_LENGTH = 120;
@@ -43,7 +44,8 @@ export function resolveSnapshotDir(config) {
 
 export async function loadSnapshot(snapshotPath) {
   try {
-    return JSON.parse(await readFile(snapshotPath, 'utf8'));
+    const content = await readFile(snapshotPath, 'utf8');
+    return snapshotPath.endsWith('.yaml') ? yaml.load(content) : JSON.parse(content);
   } catch (error) {
     if (isNotFound(error)) {
       return null;
@@ -54,7 +56,10 @@ export async function loadSnapshot(snapshotPath) {
 
 export async function saveSnapshot(snapshotPath, entry) {
   await mkdir(dirname(snapshotPath), { recursive: true });
-  await writeFile(snapshotPath, JSON.stringify(entry, null, 2));
+  const content = snapshotPath.endsWith('.yaml')
+    ? yaml.dump(entry, { indent: 2, lineWidth: -1, noRefs: true })
+    : JSON.stringify(entry, null, 2);
+  await writeFile(snapshotPath, content);
 }
 
 export async function listSnapshots(snapshotDir) {

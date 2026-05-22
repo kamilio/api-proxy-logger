@@ -2,12 +2,13 @@ import { describe, it, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert';
 import http from 'node:http';
 import { access, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { setTimeout as delay } from 'node:timers/promises';
 import yaml from 'js-yaml';
 import { createServer } from '../src/server.js';
-import { buildSnapshotPath, extractModelFromBody, generateSnapshotKey } from '../src/snapshot.js';
+import { buildLogPath } from '../src/logger.js';
+import { generateSnapshotKey } from '../src/snapshot.js';
 
 async function createUpstream(handler = defaultUpstreamHandler) {
   const requests = [];
@@ -102,15 +103,33 @@ async function exists(path) {
   }
 }
 
-async function readProviderLogs(outputDir, provider = 'test') {
-  const providerDir = join(outputDir, provider);
-  const filenames = (await readdir(providerDir)).filter((file) => file.endsWith('.yaml')).sort();
-  return Promise.all(
-    filenames.map(async (filename) => yaml.load(await readFile(join(providerDir, filename), 'utf8')))
-  );
+async function readProviderLogs(outputDir, provider = null) {
+  const logs = [];
+  async function walk(dir) {
+    let entries;
+    try {
+      entries = await readdir(dir, { withFileTypes: true });
+    } catch (error) {
+      if (error.code === 'ENOENT') return;
+      throw error;
+    }
+    for (const entry of entries) {
+      const path = join(dir, entry.name);
+      if (entry.isDirectory()) {
+        await walk(path);
+      } else if (entry.isFile() && entry.name.endsWith('.yaml')) {
+        const log = yaml.load(await readFile(path, 'utf8'));
+        if (!provider || log.provider === provider || path.includes(`/${provider}/`)) {
+          logs.push(log);
+        }
+      }
+    }
+  }
+  await walk(outputDir);
+  return logs.sort((a, b) => String(a.timestamp).localeCompare(String(b.timestamp)));
 }
 
-async function waitForProviderLogs(outputDir, count, provider = 'test') {
+async function waitForProviderLogs(outputDir, count, provider = null) {
   for (let attempt = 0; attempt < 20; attempt += 1) {
     const logs = await readProviderLogs(outputDir, provider);
     if (logs.length >= count) return logs;
@@ -119,12 +138,11 @@ async function waitForProviderLogs(outputDir, count, provider = 'test') {
   return readProviderLogs(outputDir, provider);
 }
 
-function snapshotPathFor({ snapshotDir, method = 'POST', url, body }) {
+function recordingPathFor({ outputDir, method = 'POST', url, body, prefix }) {
   const key = generateSnapshotKey({ method, url, body });
-  const model = extractModelFromBody(body);
   return {
     key,
-    path: buildSnapshotPath(snapshotDir, { url, model, key }),
+    path: buildLogPath(outputDir, { method, url, body, prefix }),
   };
 }
 
@@ -193,7 +211,7 @@ describe('proxy snapshot cache', () => {
 
     const body = JSON.stringify({ model: 'Cache Model', messages: [{ role: 'user', content: 'hit me' }] });
     const targetUrl = `${upstream.url}/v1/chat`;
-    const expected = snapshotPathFor({ snapshotDir, url: targetUrl, body });
+    const expected = recordingPathFor({ outputDir, url: targetUrl, body });
     const request = () =>
       fetch(`http://127.0.0.1:${proxy.address().port}/v1/chat`, {
         method: 'POST',
@@ -204,23 +222,19 @@ describe('proxy snapshot cache', () => {
     assert.deepStrictEqual(await readJson(await request()), { ok: true, count: 1, path: '/v1/chat' });
     assert.strictEqual(upstream.requests.length, 1);
     assert.strictEqual(await exists(expected.path), true);
+    assert.strictEqual(basename(expected.path, '.yaml'), expected.key);
 
-    const snapshot = JSON.parse(await readFile(expected.path, 'utf8'));
-    assert.strictEqual(snapshot.key, expected.key);
+    const snapshot = yaml.load(await readFile(expected.path, 'utf8'));
     assert.strictEqual(snapshot.request.headers.authorization, 'api_key_provided');
     assert.deepStrictEqual(snapshot.response.body, { ok: true, count: 1, path: '/v1/chat' });
 
     assert.deepStrictEqual(await readJson(await request()), { ok: true, count: 1, path: '/v1/chat' });
     assert.strictEqual(upstream.requests.length, 1);
 
-    const logs = await waitForProviderLogs(outputDir, 2);
-    assert.deepStrictEqual(
-      logs.map((log) => ({ cache_key: log.cache_key, cache_hit: log.cache_hit })),
-      [
-        { cache_key: expected.key, cache_hit: false },
-        { cache_key: expected.key, cache_hit: true },
-      ]
-    );
+    const logs = await waitForProviderLogs(outputDir, 1);
+    assert.strictEqual(logs.length, 1);
+    assert.ok(!Object.hasOwn(logs[0], 'cache_key'));
+    assert.ok(!Object.hasOwn(logs[0], 'cache_hit'));
   });
 
   it('honors llm-debugger-cache false over enabled config', async () => {
@@ -266,7 +280,7 @@ describe('proxy snapshot cache', () => {
 
     const body = JSON.stringify({ model: 'Header Cache', prompt: 'header true' });
     const targetUrl = `${upstream.url}/v1/chat`;
-    const expected = snapshotPathFor({ snapshotDir, url: targetUrl, body });
+    const expected = recordingPathFor({ outputDir: join(testDir, 'logs'), url: targetUrl, body });
     const response = await fetch(`http://127.0.0.1:${proxy.address().port}/v1/chat`, {
       method: 'POST',
       headers: {
@@ -295,7 +309,7 @@ describe('proxy snapshot cache', () => {
 
     const body = JSON.stringify({ model: 'Stream Model', stream: true, messages: [{ role: 'user', content: 'go' }] });
     const targetUrl = `${upstream.url}/v1/chat`;
-    const expected = snapshotPathFor({ snapshotDir, url: targetUrl, body });
+    const expected = recordingPathFor({ outputDir: join(testDir, 'logs'), url: targetUrl, body });
     const request = () =>
       fetch(`http://127.0.0.1:${proxy.address().port}/v1/chat`, {
         method: 'POST',
@@ -307,7 +321,7 @@ describe('proxy snapshot cache', () => {
     assert.strictEqual(firstBody, 'data: {"chunk":1}\n\ndata: {"chunk":2}\n\ndata: [DONE]\n\n');
     assert.strictEqual(upstream.requests.length, 1);
 
-    const snapshot = JSON.parse(await readFile(expected.path, 'utf8'));
+    const snapshot = yaml.load(await readFile(expected.path, 'utf8'));
     assert.strictEqual(snapshot.response.is_streaming, true);
     assert.strictEqual(snapshot.response.body, firstBody);
 
@@ -331,7 +345,7 @@ describe('proxy snapshot cache', () => {
 
     const body = JSON.stringify({ model: 'Override Model', prompt: 'different target' });
     const overrideTargetUrl = `${overrideUpstream.url}/v1/chat`;
-    const expected = snapshotPathFor({ snapshotDir, url: overrideTargetUrl, body });
+    const expected = recordingPathFor({ outputDir: join(testDir, 'logs'), url: overrideTargetUrl, body });
     const response = await fetch(`http://127.0.0.1:${proxy.address().port}/v1/chat`, {
       method: 'POST',
       headers: {
@@ -371,7 +385,7 @@ describe('proxy snapshot cache', () => {
 
     const body = JSON.stringify({ model: 'Binary Model', prompt: 'bytes' });
     const targetUrl = `${upstream.url}/v1/binary`;
-    const expected = snapshotPathFor({ snapshotDir, url: targetUrl, body });
+    const expected = recordingPathFor({ outputDir: join(testDir, 'logs'), url: targetUrl, body, prefix: 'binary sample' });
     const response = await fetch(`http://127.0.0.1:${proxy.address().port}/v1/binary`, {
       method: 'POST',
       headers: {
@@ -380,6 +394,7 @@ describe('proxy snapshot cache', () => {
         connection: 'keep-alive',
         te: 'trailers',
         'llm-debugger-cache': 'true',
+        'llm-debugger-prefix': 'binary sample',
       },
       body,
     });
@@ -387,12 +402,13 @@ describe('proxy snapshot cache', () => {
     assert.strictEqual(response.status, 201);
     assert.deepStrictEqual([...new Uint8Array(await response.arrayBuffer())], [0, 1, 2, 255]);
 
-    const snapshot = JSON.parse(await readFile(expected.path, 'utf8'));
+    const snapshot = yaml.load(await readFile(expected.path, 'utf8'));
     assert.strictEqual(snapshot.request.headers.authorization, 'api_key_provided');
     assert.strictEqual(snapshot.request.headers['x-api-key'], 'api_key_provided');
     assert.strictEqual(Object.hasOwn(snapshot.request.headers, 'connection'), false);
     assert.strictEqual(Object.hasOwn(snapshot.request.headers, 'te'), false);
     assert.strictEqual(Object.hasOwn(snapshot.request.headers, 'llm-debugger-cache'), false);
+    assert.strictEqual(Object.hasOwn(snapshot.request.headers, 'llm-debugger-prefix'), false);
     assert.strictEqual(snapshot.response.status, 201);
     assert.strictEqual(snapshot.response.headers['content-type'], 'application/octet-stream');
     assert.strictEqual(snapshot.response.headers['x-kept-response-header'], 'yes');
@@ -405,7 +421,7 @@ describe('proxy snapshot cache', () => {
 
     const cachedResponse = await fetch(`http://127.0.0.1:${proxy.address().port}/v1/binary`, {
       method: 'POST',
-      headers: { 'llm-debugger-cache': 'true' },
+      headers: { 'llm-debugger-cache': 'true', 'llm-debugger-prefix': 'binary sample' },
       body,
     });
     assert.strictEqual(cachedResponse.status, 201);
@@ -427,7 +443,7 @@ describe('proxy snapshot cache', () => {
 
     const body = JSON.stringify({ model: 'Broken Stream Model', stream: true, prompt: 'fail' });
     const targetUrl = `${upstream.url}/v1/chat`;
-    const expected = snapshotPathFor({ snapshotDir, url: targetUrl, body });
+    const expected = recordingPathFor({ outputDir: join(testDir, 'logs'), url: targetUrl, body });
 
     const response = await fetch(`http://127.0.0.1:${proxy.address().port}/v1/chat`, {
       method: 'POST',

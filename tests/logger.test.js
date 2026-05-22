@@ -5,6 +5,20 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import yaml from 'js-yaml';
 
+function listYamlFiles(dir, prefix = '') {
+  const files = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const path = join(dir, entry.name);
+    const name = prefix ? `${prefix}/${entry.name}` : entry.name;
+    if (entry.isDirectory()) {
+      files.push(...listYamlFiles(path, name));
+    } else if (entry.isFile() && entry.name.endsWith('.yaml')) {
+      files.push(name);
+    }
+  }
+  return files;
+}
+
 describe('log rotation', () => {
   let testDir;
   let logsDir;
@@ -61,7 +75,7 @@ describe('log rotation', () => {
     });
 
     // Check that we now have max_logs files (3)
-    const remainingFiles = readdirSync(logsDir).filter((f) => f.endsWith('.yaml'));
+    const remainingFiles = listYamlFiles(logsDir);
     assert.strictEqual(remainingFiles.length, 3, `Expected 3 files, got ${remainingFiles.length}`);
 
     // Verify the oldest files were deleted
@@ -94,7 +108,7 @@ describe('log rotation', () => {
       responseBody: '{}',
     });
 
-    const remainingFiles = readdirSync(logsDir).filter((f) => f.endsWith('.yaml'));
+    const remainingFiles = listYamlFiles(logsDir);
     assert.strictEqual(remainingFiles.length, 3, 'All files should remain');
   });
 
@@ -128,7 +142,7 @@ describe('log rotation', () => {
       responseBody: '{}',
     });
 
-    const remainingFiles = readdirSync(logsDir).filter((f) => f.endsWith('.yaml'));
+    const remainingFiles = listYamlFiles(logsDir);
     assert.strictEqual(remainingFiles.length, 6, 'All files should remain when max_logs is 0');
   });
 
@@ -159,15 +173,69 @@ describe('log rotation', () => {
     });
 
     // Count all remaining yaml files
-    const rootFiles = readdirSync(logsDir).filter((f) => f.endsWith('.yaml'));
-    const subFiles = readdirSync(openaiDir).filter((f) => f.endsWith('.yaml'));
-    const totalFiles = rootFiles.length + subFiles.length;
+    const totalFiles = listYamlFiles(logsDir).length;
 
     assert.strictEqual(totalFiles, 2, `Expected 2 total files, got ${totalFiles}`);
   });
 });
 
-describe('logRequest cache fields', () => {
+describe('logRequest file path', () => {
+  let testDir;
+  let logsDir;
+  let originalEnv;
+
+  beforeEach(() => {
+    testDir = join(tmpdir(), `llm-debugger-path-test-${Date.now()}`);
+    logsDir = join(testDir, 'logs');
+    mkdirSync(logsDir, { recursive: true });
+    originalEnv = { ...process.env };
+    process.env.LLM_DEBUGGER_HOME = testDir;
+    writeFileSync(join(testDir, 'config.yaml'), 'max_logs: 0\n', 'utf-8');
+  });
+
+  afterEach(() => {
+    process.env = originalEnv;
+    rmSync(testDir, { recursive: true, force: true });
+  });
+
+  it('writes logs as basepath/model/hash.yaml when request body has model', async () => {
+    const { logRequest } = await import(`../src/logger.js?t=${Date.now()}`);
+
+    const file = await logRequest(logsDir, {
+      method: 'POST',
+      url: 'https://gateway.ai.cloudflare.com/v1/account/gateway/compat/chat/completions',
+      status: 200,
+      duration: 100,
+      requestHeaders: {},
+      responseHeaders: {},
+      requestBody: { model: 'anthropic/claude-sonnet-4-5', messages: [] },
+      responseBody: '{}',
+      recordingPrefix: 'compat chat',
+    });
+
+    assert.match(file, /cloudflare-com\/claude-sonnet-4-5\/compat-chat-[a-f0-9]{12}\.yaml$/);
+  });
+
+  it('uses model from native Google URL when request body has no model', async () => {
+    const { logRequest } = await import(`../src/logger.js?t=${Date.now()}`);
+
+    const file = await logRequest(logsDir, {
+      method: 'POST',
+      url: 'https://gateway.ai.cloudflare.com/v1/account/gateway/google-ai-studio/v1beta/models/gemini-3.5-flash:generateContent',
+      status: 200,
+      duration: 100,
+      requestHeaders: {},
+      responseHeaders: {},
+      requestBody: { contents: [{ role: 'user', parts: [{ text: 'hello' }] }] },
+      responseBody: '{}',
+      recordingPrefix: 'native-chat',
+    });
+
+    assert.match(file, /cloudflare-com\/gemini-3-5-flash\/native-chat-[a-f0-9]{12}\.yaml$/);
+  });
+});
+
+describe('logRequest metadata fields', () => {
   let testDir;
   let logsDir;
   let originalEnv;
@@ -190,10 +258,10 @@ describe('logRequest cache fields', () => {
     }
   });
 
-  it('should persist cache fields only when provided', async () => {
+  it('does not persist derived cache metadata in the YAML body', async () => {
     const { logRequest } = await import(`../src/logger.js?t=${Date.now()}`);
 
-    const cacheHitFile = await logRequest(logsDir, {
+    const file = await logRequest(logsDir, {
       method: 'GET',
       url: 'https://api.test.com/v1/cache-hit',
       status: 200,
@@ -206,40 +274,12 @@ describe('logRequest cache fields', () => {
       cacheHit: true,
     });
 
-    const cacheMissFile = await logRequest(logsDir, {
-      method: 'GET',
-      url: 'https://api.test.com/v1/cache-miss',
-      status: 200,
-      duration: 27,
-      requestHeaders: {},
-      responseHeaders: {},
-      requestBody: null,
-      responseBody: '{}',
-      cacheKey: '0a1b2c3d4e5f',
-      cacheHit: false,
-    });
-
-    const uncachedFile = await logRequest(logsDir, {
-      method: 'GET',
-      url: 'https://api.test.com/v1/uncached',
-      status: 200,
-      duration: 30,
-      requestHeaders: {},
-      responseHeaders: {},
-      requestBody: null,
-      responseBody: '{}',
-    });
-
-    const cacheHitLog = yaml.load(readFileSync(cacheHitFile, 'utf-8'));
-    assert.strictEqual(cacheHitLog.cache_key, 'a1b2c3d4e5f6');
-    assert.strictEqual(cacheHitLog.cache_hit, true);
-
-    const cacheMissLog = yaml.load(readFileSync(cacheMissFile, 'utf-8'));
-    assert.strictEqual(cacheMissLog.cache_key, '0a1b2c3d4e5f');
-    assert.strictEqual(cacheMissLog.cache_hit, false);
-
-    const uncachedLog = yaml.load(readFileSync(uncachedFile, 'utf-8'));
-    assert.ok(!Object.hasOwn(uncachedLog, 'cache_key'));
-    assert.ok(!Object.hasOwn(uncachedLog, 'cache_hit'));
+    const log = yaml.load(readFileSync(file, 'utf-8'));
+    assert.deepStrictEqual(Object.keys(log), ['request', 'response']);
+    assert.ok(!Object.hasOwn(log, 'cache_key'));
+    assert.ok(!Object.hasOwn(log, 'cache_hit'));
+    assert.ok(!Object.hasOwn(log, 'timestamp'));
+    assert.ok(!Object.hasOwn(log, 'provider'));
+    assert.ok(!Object.hasOwn(log, 'duration_ms'));
   });
 });

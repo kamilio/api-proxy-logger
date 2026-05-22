@@ -31,9 +31,41 @@ describe('sanitizeHeaders', () => {
     assert.strictEqual(result['api-key'], 'api_key_provided');
   });
 
+  it('should redact provider API key and cookie headers', () => {
+    const headers = {
+      'x-goog-api-key': 'cfut_secret',
+      'OpenAI-Api-Key': 'sk-secret',
+      'cf-aig-authorization': 'Bearer cf-token',
+      'Set-Cookie': '__cf_bm=secret; HttpOnly',
+      Cookie: 'session=secret',
+      'x-goog-api-client': 'google-genai-sdk/2.6.0',
+    };
+    const result = sanitizeHeaders(headers);
+    assert.strictEqual(result['x-goog-api-key'], 'api_key_provided');
+    assert.strictEqual(result['OpenAI-Api-Key'], 'api_key_provided');
+    assert.strictEqual(result['cf-aig-authorization'], 'api_key_provided');
+    assert.strictEqual(result['Set-Cookie'], 'api_key_provided');
+    assert.strictEqual(result.Cookie, 'api_key_provided');
+    assert.strictEqual(result['x-goog-api-client'], 'google-genai-sdk/2.6.0');
+  });
+
   it('should handle empty headers', () => {
     const result = sanitizeHeaders({});
     assert.deepStrictEqual(result, {});
+  });
+
+  it('should redact secret-looking header values even under nonstandard names', () => {
+    const headers = {
+      'x-custom-auth': 'Bearer cfut_1234567890abcdefghijklmnopqrstuvwxyz',
+      'x-custom-openai': 'sk-1234567890abcdefghijklmnopqrstuvwxyz',
+      'x-custom-google': 'AIza1234567890abcdefghijklmnopqrstuvwxyz',
+      'x-safe': 'plain-value',
+    };
+    const result = sanitizeHeaders(headers);
+    assert.strictEqual(result['x-custom-auth'], 'Bearer api_key_provided');
+    assert.strictEqual(result['x-custom-openai'], 'api_key_provided');
+    assert.strictEqual(result['x-custom-google'], 'api_key_provided');
+    assert.strictEqual(result['x-safe'], 'plain-value');
   });
 
   it('should handle null/undefined headers', () => {
@@ -100,6 +132,34 @@ describe('sanitizeBody', () => {
     assert.strictEqual(result.level1.level2.level3.apikey, 'api_key_provided');
     assert.strictEqual(result.level1.level2.level3.data, 'safe');
   });
+
+  it('should redact common token and secret body keys', () => {
+    const body = {
+      accessToken: 'access-secret',
+      refresh_token: 'refresh-secret',
+      clientSecret: 'client-secret',
+      password: 'password-secret',
+      credential: 'credential-secret',
+      regular: 'safe',
+    };
+    const result = sanitizeBody(body);
+    assert.strictEqual(result.accessToken, 'api_key_provided');
+    assert.strictEqual(result.refresh_token, 'api_key_provided');
+    assert.strictEqual(result.clientSecret, 'api_key_provided');
+    assert.strictEqual(result.password, 'api_key_provided');
+    assert.strictEqual(result.credential, 'api_key_provided');
+    assert.strictEqual(result.regular, 'safe');
+  });
+
+  it('should redact secret-looking body string values under nonstandard keys', () => {
+    const body = {
+      note: 'use Bearer cfut_1234567890abcdefghijklmnopqrstuvwxyz',
+      safe: 'regular text',
+    };
+    const result = sanitizeBody(body);
+    assert.strictEqual(result.note, 'use Bearer api_key_provided');
+    assert.strictEqual(result.safe, 'regular text');
+  });
 });
 
 describe('sanitizeUrl', () => {
@@ -114,6 +174,21 @@ describe('sanitizeUrl', () => {
     const url = '/v1/models?apikey=secret';
     const result = sanitizeUrl(url);
     assert.ok(result.includes('apikey=api_key_provided'));
+  });
+
+  it('should redact token and provider API key query params', () => {
+    const url = 'https://api.example.com/endpoint?x-goog-api-key=secret&access_token=secret&model=gpt-4';
+    const result = sanitizeUrl(url);
+    assert.ok(result.includes('x-goog-api-key=api_key_provided'));
+    assert.ok(result.includes('access_token=api_key_provided'));
+    assert.ok(result.includes('model=gpt-4'));
+  });
+
+  it('should redact secret-looking query values under nonstandard params', () => {
+    const url = 'https://api.example.com/endpoint?custom=Bearer%20cfut_1234567890abcdefghijklmnopqrstuvwxyz&other=value';
+    const result = sanitizeUrl(url);
+    assert.ok(result.includes('custom=Bearer+api_key_provided') || result.includes('custom=Bearer%20api_key_provided'));
+    assert.ok(result.includes('other=value'));
   });
 
   it('should preserve URLs without sensitive params', () => {

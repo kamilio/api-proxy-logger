@@ -8,21 +8,28 @@ import { resolveSnapshotDir } from './snapshot.js';
 
 const URL_OVERRIDE_HEADER = 'llm-debugger-url';
 const CACHE_OVERRIDE_HEADER = 'llm-debugger-cache';
+const PREFIX_HEADER = 'llm-debugger-prefix';
 
 export function resolveOverrides(req) {
   const headers = req?.headers || {};
   const urlValue = getHeaderValue(headers, URL_OVERRIDE_HEADER);
   const cacheValue = getHeaderValue(headers, CACHE_OVERRIDE_HEADER);
+  const prefixValue = getHeaderValue(headers, PREFIX_HEADER);
   const cleanedHeaders = Object.fromEntries(
     Object.entries(headers).filter(([key]) => {
       const normalizedKey = key.toLowerCase();
-      return normalizedKey !== URL_OVERRIDE_HEADER && normalizedKey !== CACHE_OVERRIDE_HEADER;
+      return (
+        normalizedKey !== URL_OVERRIDE_HEADER &&
+        normalizedKey !== CACHE_OVERRIDE_HEADER &&
+        normalizedKey !== PREFIX_HEADER
+      );
     })
   );
 
   return {
     urlOverride: resolveUrlOverride(urlValue),
     cacheOverride: resolveCacheOverride(cacheValue),
+    recordingPrefix: resolveRecordingPrefix(prefixValue),
     cleanedHeaders,
   };
 }
@@ -128,6 +135,7 @@ export function createServer(config, { onListen } = {}) {
       proxyHeaders,
       loggingEnabled: runtimeConfig.enabled !== false,
       cacheEnabled: overrides.cacheOverride ?? runtimeConfig.cache ?? false,
+      recordingPrefix: overrides.recordingPrefix,
       snapshotDir: resolveSnapshotDir(runtimeConfig),
     };
 
@@ -185,6 +193,13 @@ function resolveCacheOverride(value) {
   if (normalized === 'true') return true;
   if (normalized === 'false') return false;
   return null;
+}
+
+function resolveRecordingPrefix(value) {
+  if (value === undefined) return null;
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return trimmed || null;
 }
 
 function throwInvalidUrlOverride() {

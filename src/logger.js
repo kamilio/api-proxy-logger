@@ -1,58 +1,33 @@
+import { createHash } from 'node:crypto';
 import { mkdir, writeFile, readdir, readFile, unlink } from 'node:fs/promises';
-import { basename, join, relative } from 'node:path';
+import { basename, dirname, join, relative } from 'node:path';
 import yaml from 'js-yaml';
 import { sanitizeBody, sanitizeHeaders, sanitizeUrl } from './redact.js';
 import { filterLogs } from './viewer-filters.js';
 import { loadConfig } from './config.js';
 import { getPinnedSet } from './pinned.js';
 
-function generateFilename() {
-  const now = new Date();
-  const pad = (n, len = 2) => String(n).padStart(len, '0');
-  return [
-    now.getUTCFullYear(),
-    pad(now.getUTCMonth() + 1),
-    pad(now.getUTCDate()),
-    '_',
-    pad(now.getUTCHours()),
-    pad(now.getUTCMinutes()),
-    pad(now.getUTCSeconds()),
-    '_',
-    pad(now.getUTCMilliseconds(), 3),
-    String(Math.random()).slice(2, 5),
-    '.yaml',
-  ].join('');
-}
-
-function getProviderDir(outputDir, provider) {
-  if (!provider) return outputDir;
-  return join(outputDir, provider);
-}
-
 async function getAllLogFiles(outputDir) {
   const files = [];
   try {
-    const rootEntries = await readdir(outputDir, { withFileTypes: true });
-    for (const entry of rootEntries) {
-      if (entry.isFile() && entry.name.endsWith('.yaml')) {
-        files.push({ path: join(outputDir, entry.name), name: entry.name, logId: `unknown/${entry.name}` });
-      } else if (entry.isDirectory()) {
-        try {
-          const subFiles = await readdir(join(outputDir, entry.name));
-          for (const subFile of subFiles) {
-            if (subFile.endsWith('.yaml')) {
-              files.push({ path: join(outputDir, entry.name, subFile), name: subFile, logId: `${entry.name}/${subFile}` });
-            }
-          }
-        } catch {
-          // Ignore errors reading subdirectories
-        }
-      }
-    }
+    await collectLogFiles(outputDir, outputDir, files);
   } catch {
     // Directory doesn't exist yet
   }
   return files;
+}
+
+async function collectLogFiles(rootDir, dir, files) {
+  const entries = await readdir(dir, { withFileTypes: true });
+  for (const entry of entries) {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      await collectLogFiles(rootDir, path, files);
+    } else if (entry.isFile() && entry.name.endsWith('.yaml')) {
+      const logId = relative(rootDir, path);
+      files.push({ path, name: entry.name, logId });
+    }
+  }
 }
 
 async function rotateLogsIfNeeded(outputDir) {
@@ -83,9 +58,6 @@ async function rotateLogsIfNeeded(outputDir) {
 }
 
 export async function logRequest(outputDir, data) {
-  const providerDir = getProviderDir(outputDir, data.provider);
-  await mkdir(providerDir, { recursive: true });
-
   const sanitizedRequestHeaders = sanitizeHeaders(data.requestHeaders || {});
   const sanitizedResponseHeaders = sanitizeHeaders(data.responseHeaders || {});
   const sanitizedRequestBody = sanitizeBody(data.requestBody);
@@ -93,9 +65,6 @@ export async function logRequest(outputDir, data) {
   const sanitizedUrl = sanitizeUrl(data.url);
 
   const logEntry = {
-    timestamp: new Date().toISOString(),
-    provider: data.provider || null,
-    duration_ms: data.duration,
     request: {
       method: data.method,
       url: sanitizedUrl,
@@ -105,30 +74,152 @@ export async function logRequest(outputDir, data) {
     response: {
       status: data.status,
       headers: sanitizedResponseHeaders,
-      body: sanitizedResponseBody,
       is_streaming: data.isStreaming,
     },
   };
 
-  if (data.cacheKey !== undefined || data.cacheHit !== undefined) {
-    logEntry.cache_key = data.cacheKey ?? null;
-    logEntry.cache_hit = data.cacheHit === true;
+  if (data.responseBodyBase64) {
+    logEntry.response.body_base64 = data.responseBodyBase64;
+    logEntry.response.is_binary = data.isBinary === true;
+  } else {
+    logEntry.response.body = sanitizedResponseBody;
   }
 
-  const filename = generateFilename();
-  const filepath = join(providerDir, filename);
+  const filepath = buildLogPath(outputDir, {
+    method: data.method,
+    url: data.url,
+    body: data.requestBody,
+    prefix: data.recordingPrefix,
+  });
   const content = yaml.dump(logEntry, {
     indent: 2,
     lineWidth: -1,
     noRefs: true,
   });
 
+  await mkdir(dirname(filepath), { recursive: true });
   await writeFile(filepath, content, 'utf-8');
   console.log(`  Logged: ${data.method} ${sanitizedUrl} -> ${data.status} (${data.duration}ms)`);
 
   await rotateLogsIfNeeded(outputDir);
 
   return filepath;
+}
+
+export function buildLogPath(outputDir, { method, url, body, prefix }) {
+  const basePath = extractBasePath(url);
+  const model = extractModelFromBody(body) || extractModelFromUrl(url);
+  const key = createLogKey({ method, url, body });
+  const filename = createLogFilename(key, prefix);
+  return model
+    ? join(outputDir, basePath, model, filename)
+    : join(outputDir, basePath, filename);
+}
+
+function createLogFilename(key, prefix) {
+  const rawPrefix = typeof prefix === 'string' ? prefix.trim() : '';
+  const safePrefix = rawPrefix ? sanitizeForFs(rawPrefix) : '';
+  return safePrefix ? `${safePrefix}-${key}.yaml` : `${key}.yaml`;
+}
+
+function createLogKey({ method, url, body }) {
+  const normalized = stableStringify({
+    method,
+    url,
+    body: normalizeBodyForKey(body),
+  });
+  return createHash('sha256').update(normalized).digest('hex').slice(0, 12);
+}
+
+function extractBasePath(urlValue) {
+  try {
+    const url = new URL(urlValue);
+    return sanitizeForFs(baseDomain(url.hostname));
+  } catch {
+    return sanitizeForFs(urlValue || 'unknown');
+  }
+}
+
+function baseDomain(hostname) {
+  if (!hostname) return 'unknown';
+  if (hostname === 'localhost') return hostname;
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(hostname)) return hostname;
+
+  const parts = hostname.split('.').filter(Boolean);
+  if (parts.length <= 2) return hostname;
+  return parts.slice(-2).join('.');
+}
+
+function extractModelFromBody(body) {
+  const parsed = parseJsonBody(body);
+  if (parsed && typeof parsed === 'object' && !Array.isArray(parsed) && typeof parsed.model === 'string') {
+    return sanitizeForFs(normalizeModelName(parsed.model));
+  }
+  return null;
+}
+
+function normalizeModelName(model) {
+  const parts = String(model).split('/').filter(Boolean);
+  return parts.length ? parts.at(-1) : model;
+}
+
+function extractModelFromUrl(urlValue) {
+  try {
+    const url = new URL(urlValue);
+    const match = url.pathname.match(/\/models\/([^/:]+)(?::|\/|$)/);
+    return match ? sanitizeForFs(decodeURIComponent(match[1])) : null;
+  } catch {
+    return null;
+  }
+}
+
+function normalizeBodyForKey(body) {
+  const parsed = parseJsonBody(body);
+  return parsed === undefined ? bodyToString(body) : parsed;
+}
+
+function parseJsonBody(body) {
+  if (body === null || body === undefined) return undefined;
+  if (typeof body === 'object' && !Buffer.isBuffer(body)) return body;
+  const text = bodyToString(body);
+  if (!text) return undefined;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return undefined;
+  }
+}
+
+function bodyToString(body) {
+  if (body === null || body === undefined) return '';
+  if (typeof body === 'string') return body;
+  if (Buffer.isBuffer(body)) return body.toString('utf8');
+  return String(body);
+}
+
+function stableStringify(value) {
+  return JSON.stringify(sortForStableStringify(value));
+}
+
+function sortForStableStringify(value) {
+  if (Array.isArray(value)) return value.map(sortForStableStringify);
+  if (value && typeof value === 'object') {
+    return Object.keys(value)
+      .sort()
+      .reduce((sorted, key) => {
+        sorted[key] = sortForStableStringify(value[key]);
+        return sorted;
+      }, {});
+  }
+  return value;
+}
+
+function sanitizeForFs(value) {
+  return String(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '') || 'unknown';
 }
 
 export async function getRecentLogs(outputDir, limitOrOptions = 20, provider = null) {
@@ -154,53 +245,23 @@ export async function getRecentLogs(outputDir, limitOrOptions = 20, provider = n
   }
 
   try {
-    const directories = [];
+    let fileEntries = await getAllLogFiles(outputDir);
     if (providerFilter) {
-      if (providerFilter === 'unknown') {
-        directories.push({ dir: outputDir, provider: null });
-      } else {
-        directories.push({ dir: join(outputDir, providerFilter), provider: providerFilter });
-      }
-    } else {
-      const rootEntries = await readdir(outputDir, { withFileTypes: true });
-      directories.push({ dir: outputDir, provider: null });
-      for (const entry of rootEntries) {
-        if (entry.isDirectory()) {
-          directories.push({ dir: join(outputDir, entry.name), provider: entry.name });
-        }
-      }
-    }
-
-    const fileEntries = [];
-    for (const { dir, provider } of directories) {
-      try {
-        const files = await readdir(dir);
-        for (const filename of files) {
-          if (filename.endsWith('.yaml')) {
-            fileEntries.push({ path: join(dir, filename), provider });
-          }
-        }
-      } catch (error) {
-        if (error.code !== 'ENOENT') {
-          throw error;
-        }
-      }
+      fileEntries = fileEntries.filter((entry) => entry.logId === providerFilter || entry.logId.startsWith(`${providerFilter}/`));
     }
 
     const logs = await Promise.all(
       fileEntries.map(async (entry) => {
         const content = await readFile(entry.path, 'utf-8');
         const log = yaml.load(content);
-        if (log && !log.provider && entry.provider) {
-          log.provider = entry.provider;
-        }
         if (log && !log.provider) {
           log.provider = 'unknown';
         }
         if (log) {
+          const [viewerProvider, ...viewerFileParts] = entry.logId.split('/');
           log._source_path = relative(process.cwd(), entry.path);
-          log._viewer_provider = log.provider || 'unknown';
-          log._viewer_file = basename(entry.path);
+          log._viewer_provider = viewerProvider || 'unknown';
+          log._viewer_file = viewerFileParts.length ? viewerFileParts.join('/') : basename(entry.path);
         }
         return log;
       })

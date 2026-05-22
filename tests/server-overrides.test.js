@@ -7,11 +7,12 @@ function createRequest(headers = {}) {
 }
 
 describe('resolveOverrides', () => {
-  it('strips both override headers from cleanedHeaders', () => {
+  it('strips debugger control headers from cleanedHeaders', () => {
     const headers = {
       authorization: 'Bearer token',
       'llm-debugger-url': 'https://api.example.com/v1/chat',
       'llm-debugger-cache': 'true',
+      'llm-debugger-prefix': 'compat-chat',
     };
     const result = resolveOverrides(createRequest(headers));
 
@@ -22,7 +23,9 @@ describe('resolveOverrides', () => {
       authorization: 'Bearer token',
       'llm-debugger-url': 'https://api.example.com/v1/chat',
       'llm-debugger-cache': 'true',
+      'llm-debugger-prefix': 'compat-chat',
     });
+    assert.strictEqual(result.recordingPrefix, 'compat-chat');
   });
 
   it('strips override headers case-insensitively from cleanedHeaders', () => {
@@ -31,6 +34,7 @@ describe('resolveOverrides', () => {
         authorization: 'Bearer token',
         'LLM-Debugger-URL': 'https://api.example.com/v1/chat',
         'Llm-Debugger-Cache': 'false',
+        'LLM-Debugger-Prefix': 'Native Tool',
       })
     );
 
@@ -39,6 +43,7 @@ describe('resolveOverrides', () => {
     });
     assert.strictEqual(result.urlOverride, 'https://api.example.com/v1/chat');
     assert.strictEqual(result.cacheOverride, false);
+    assert.strictEqual(result.recordingPrefix, 'Native Tool');
   });
 
   it('returns null overrides when neither header is present', () => {
@@ -50,6 +55,7 @@ describe('resolveOverrides', () => {
 
     assert.strictEqual(result.urlOverride, null);
     assert.strictEqual(result.cacheOverride, null);
+    assert.strictEqual(result.recordingPrefix, null);
     assert.deepStrictEqual(result.cleanedHeaders, {
       authorization: 'Bearer token',
     });
@@ -59,8 +65,20 @@ describe('resolveOverrides', () => {
     assert.deepStrictEqual(resolveOverrides({}), {
       urlOverride: null,
       cacheOverride: null,
+      recordingPrefix: null,
       cleanedHeaders: {},
     });
+  });
+
+  it('parses recording prefix values', () => {
+    assert.strictEqual(
+      resolveOverrides(createRequest({ 'llm-debugger-prefix': ' compat chat ' })).recordingPrefix,
+      'compat chat'
+    );
+    assert.strictEqual(
+      resolveOverrides(createRequest({ 'llm-debugger-prefix': '' })).recordingPrefix,
+      null
+    );
   });
 
   it('parses cache override values', () => {

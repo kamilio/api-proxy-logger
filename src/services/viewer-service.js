@@ -6,6 +6,7 @@ import { getRecentLogs } from '../logger.js';
 import { parseCsvParam } from '../viewer-filters.js';
 
 const SAFE_SEGMENT = /^[a-zA-Z0-9._-]+$/;
+const SAFE_RELATIVE_LOG_PATH = /^[a-zA-Z0-9._/-]+$/;
 
 export const COMPARE_SECTIONS = [
   {
@@ -131,12 +132,13 @@ export function parseCompareLogSelection(value, { max = 5 } = {}) {
   const entries = parseCsvParam(value);
 
   for (const entry of entries) {
-    const [provider, filename, ...rest] = String(entry).split('/');
-    if (!provider || !filename || rest.length) {
+    const [provider, ...filenameParts] = String(entry).split('/');
+    const filename = filenameParts.join('/');
+    if (!provider || !filename) {
       invalid.push(entry);
       continue;
     }
-    if (!isSafeSegment(provider) || !isSafeSegment(filename) || !filename.endsWith('.yaml')) {
+    if (!isSafeSegment(provider) || !isSafeRelativeLogPath(filename) || !filename.endsWith('.yaml')) {
       invalid.push(entry);
       continue;
     }
@@ -194,7 +196,7 @@ function isPathWithin(baseDir, targetPath) {
 }
 
 export function resolveViewerLogPath(outputDir, provider, filename) {
-  if (!isSafeSegment(provider) || !isSafeSegment(filename)) return null;
+  if (!isSafeSegment(provider) || !isSafeRelativeLogPath(filename)) return null;
   if (!filename.endsWith('.yaml')) return null;
 
   const logsDir = resolve(outputDir);
@@ -203,6 +205,14 @@ export function resolveViewerLogPath(outputDir, provider, filename) {
 
   if (!isPathWithin(logsDir, targetPath)) return null;
   return targetPath;
+}
+
+function isSafeRelativeLogPath(value) {
+  if (!value || typeof value !== 'string') return false;
+  if (!SAFE_RELATIVE_LOG_PATH.test(value)) return false;
+  return value
+    .split('/')
+    .every((segment) => isSafeSegment(segment));
 }
 
 export async function deleteViewerLog(outputDir, provider, filename) {

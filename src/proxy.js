@@ -1,6 +1,5 @@
-import { logRequest } from './logger.js';
+import { buildLogPath, logRequest } from './logger.js';
 import {
-  buildSnapshotPath,
   extractModelFromBody,
   generateSnapshotKey,
   loadSnapshot,
@@ -72,6 +71,7 @@ function createProxyRequest(req, config) {
     parsedBody,
     outgoingHeaders,
     snapshot,
+    recordingPrefix: config.recordingPrefix,
     startedAt: Date.now(),
   };
 }
@@ -94,7 +94,12 @@ function createSnapshotContext(config, { method, targetUrl, body, parsedBody }) 
 
   const key = generateSnapshotKey({ method, url: targetUrl, body });
   const model = extractModelFromBody(parsedBody);
-  const snapshotPath = buildSnapshotPath(config.snapshotDir, { url: targetUrl, model, key });
+  const snapshotPath = buildLogPath(config.outputDir, {
+    method,
+    url: targetUrl,
+    body: parsedBody ?? body,
+    prefix: config.recordingPrefix,
+  });
   const url = new URL(targetUrl);
 
   return { key, model, snapshotPath, url };
@@ -119,10 +124,11 @@ async function tryRespondFromSnapshot(res, config, request) {
     status: response.status || 200,
     responseHeaders,
     responseBody: response.body ?? response.body_base64 ?? null,
+    responseBodyBase64: response.body_base64,
+    isBinary: response.is_binary === true,
     isStreaming: response.is_streaming === true,
+    recordingPrefix: request.recordingPrefix,
     duration: elapsedMs(request),
-    cacheKey: request.snapshot.key,
-    cacheHit: true,
   });
 
   return true;
@@ -148,7 +154,6 @@ async function saveSnapshotEntry(request, upstream, responseBody, isStreaming) {
   if (!request.snapshot) return;
 
   await saveSnapshot(request.snapshot.snapshotPath, {
-    key: request.snapshot.key,
     request: {
       method: request.method,
       url: request.targetUrl,
@@ -161,18 +166,7 @@ async function saveSnapshotEntry(request, upstream, responseBody, isStreaming) {
       ...createSnapshotResponse(upstream.filteredHeaders, responseBody, isStreaming),
       is_streaming: isStreaming,
     },
-    metadata: createSnapshotMetadata(request.snapshot, upstream.status),
   });
-}
-
-function createSnapshotMetadata(context, status) {
-  return {
-    recordedAt: new Date().toISOString(),
-    model: context.model,
-    host: context.url.host,
-    path: context.url.pathname,
-    status,
-  };
 }
 
 function createSnapshotResponse(headers, buffer, isStreaming) {
@@ -249,6 +243,7 @@ function filterResponseHeaders(headers) {
 }
 
 async function logCacheMiss(config, request, upstream, responseBody, { isStreaming }) {
+  const cacheResponse = createSnapshotResponse(upstream.filteredHeaders, responseBody, isStreaming);
   await logProxyRequest(config, {
     provider: config.provider,
     method: request.method,
@@ -256,11 +251,13 @@ async function logCacheMiss(config, request, upstream, responseBody, { isStreami
     requestHeaders: request.outgoingHeaders,
     requestBody: request.parsedBody,
     status: upstream.status,
-    responseHeaders: upstream.headers,
-    responseBody: isStreaming ? parseStreamingBody(responseBody) : parseBody(responseBody),
+    responseHeaders: upstream.filteredHeaders,
+    responseBody: cacheResponse.body ?? null,
+    responseBodyBase64: cacheResponse.body_base64,
+    isBinary: cacheResponse.is_binary === true,
     isStreaming,
+    recordingPrefix: request.recordingPrefix,
     duration: elapsedMs(request),
-    ...(request.snapshot && { cacheKey: request.snapshot.key, cacheHit: false }),
   });
 }
 
@@ -340,9 +337,10 @@ export async function createStreamingProxyHandler(req, res, config) {
             requestHeaders: request.outgoingHeaders,
             requestBody: request.parsedBody,
             status: upstream.status,
-            responseHeaders: upstream.headers,
+            responseHeaders: upstream.filteredHeaders,
             responseBody: parseStreamingBody(fullResponse),
             isStreaming: true,
+            recordingPrefix: request.recordingPrefix,
             duration: elapsedMs(request),
           });
         }

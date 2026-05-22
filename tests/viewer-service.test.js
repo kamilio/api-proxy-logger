@@ -24,8 +24,14 @@ describe('resolveViewerLogPath', () => {
 
     it('returns null for invalid filename segments', () => {
         assert.strictEqual(resolveViewerLogPath('/logs', 'openai', '../test.yaml'), null);
-        assert.strictEqual(resolveViewerLogPath('/logs', 'openai', 'sub/test.yaml'), null);
         assert.strictEqual(resolveViewerLogPath('/logs', 'openai', '..'), null);
+    });
+
+    it('returns valid path for nested log filenames', () => {
+        assert.strictEqual(
+            resolveViewerLogPath('/logs', 'openai', 'model/hash.yaml'),
+            '/logs/openai/model/hash.yaml'
+        );
     });
 
     it('returns null for non-yaml files', () => {
